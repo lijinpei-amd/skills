@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "jinpei-skills",
+  "description": "Li Jinpei's personal agent skills, shared across Claude Code, Codex and pi.",
+  "owner": {
+    "name": "Li Jinpei",
+    "email": "jinpli@amd.com"
+  },
+  "plugins": [
+    {
+      "name": "working-on-llvm",
+      "description": "Workflow and conventions for fixing upstream llvm/llvm-project (LLVM/MLIR/Clang) issues and getting PRs merged.",
+      "category": "development",
+      "source": "./plugins/working-on-llvm"
+    }
+  ]
+}

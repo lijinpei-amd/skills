@@ -1,0 +1,19 @@
+{
+  "name": "jinpei-skills",
+  "interface": {
+    "displayName": "Jinpei Skills"
+  },
+  "plugins": [
+    {
+      "name": "working-on-llvm",
+      "source": {
+        "source": "local",
+        "path": "./plugins/working-on-llvm"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Development"
+    }
+  ]
+}

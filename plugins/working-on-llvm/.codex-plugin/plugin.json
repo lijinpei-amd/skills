@@ -1,0 +1,35 @@
+{
+  "name": "working-on-llvm",
+  "version": "1.0.0",
+  "description": "Workflow and conventions for fixing upstream llvm/llvm-project (LLVM/MLIR/Clang) issues and getting PRs merged. Covers building/testing LLVM, minimizing .ll/.mir/MLIR test cases, debugging passes, llvm-reduce/alive2/llubi, and PR hygiene.",
+  "author": {
+    "name": "Li Jinpei",
+    "email": "jinpli@amd.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "llvm",
+    "mlir",
+    "clang",
+    "amdgpu",
+    "instcombine",
+    "selectiondag",
+    "llvm-reduce",
+    "alive2",
+    "lit",
+    "filecheck",
+    "code-review"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Working on LLVM",
+    "shortDescription": "LLVM issue, patch, test, and PR workflow",
+    "developerName": "Li Jinpei",
+    "category": "Development",
+    "defaultPrompt": [
+      "Investigate and fix this LLVM issue with focused tests and PR-ready hygiene.",
+      "Reduce this crash to a minimal .ll regression test and regenerate the CHECK lines.",
+      "Address the reviewer comments on this llvm-project PR."
+    ]
+  }
+}
