@@ -45,6 +45,9 @@ anywhere python3 does.
 | which arch is this gfx target? | `isa.py gfx gfx950` (`gfx` prefix optional) |
 | gfx targets of an arch | `isa.py gfx --arch cdna5` |
 | arch / group overview | `isa.py archs`, `isa.py groups --arch cdna5` |
+| what does it actually compute? | `isa.py manual --inst V_FMA_F32 --arch rdna4` |
+| search the manual prose | `isa.py manual --grep 'wait state' [--arch A]` |
+| manual table of contents | `isa.py manual --toc --arch cdna5 [--level 2]` |
 | anything else | `isa.py sql "<SELECT ...>"` |
 | verify the corpus answers correctly | `isa.py selftest` ($n_selftests examples) |
 
@@ -83,9 +86,9 @@ cannot damage the corpus. Base tables — `instruction`, `inst_encoding`,
 
 ## Known limits
 
-- **Structure only, no semantics.** The XML carries names, encodings, opcodes,
-  operands and one-line descriptions. It has no pseudocode and no prose.
-  $pdf_status
+- **Structure vs semantics.** `isa.db` is built from AMD's machine-readable XML:
+  names, encodings, opcodes, operands, one-line descriptions. Pseudocode, hazards
+  and prose live in the ISA manuals. $pdf_status
 - **gfx mapping is LLVM's, not AMD's.** The XML names no gfx targets; the map
   comes from LLVM's `AMDGPUUsage.rst`. Beware that LLVM's headings are *encoding*
   generations, not product architectures — it files `gfx1250` under "GCN GFX12

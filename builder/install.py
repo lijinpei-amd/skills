@@ -54,6 +54,8 @@ def main():
     ap.add_argument("--link", action="store_true",
                     help="symlink instead of copying (live edits, saves ~20 MB each)")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--manual", action="store_true",
+                    help="also install build/manual/ (PDF-derived, LOCAL ONLY)")
     args = ap.parse_args()
 
     if not os.path.isdir(args.src):
@@ -66,9 +68,26 @@ def main():
         sys.exit("unknown agent(s): %s (known: %s)"
                  % (", ".join(unknown), ", ".join(TARGETS)))
 
+    manual_src = os.path.join(ROOT, "build", "manual")
+    if args.manual and not os.path.isdir(manual_src):
+        sys.exit("--manual given but build/manual does not exist; run "
+                 ".venv/bin/python builder/pdf_to_manual.py first")
+
     for agent in wanted:
         install_one(agent, TARGETS[agent], os.path.realpath(args.src), name,
                     args.link, args.dry_run)
+        if args.manual and not args.dry_run:
+            # Linked into the installed skill rather than copied into dist/, so
+            # dist/ stays the shareable artifact and the PDF-derived pages exist
+            # only where they were built.
+            dest = os.path.join(TARGETS[agent], name, "manual")
+            if os.path.islink(dest) or os.path.exists(dest):
+                if os.path.islink(dest):
+                    os.unlink(dest)
+                else:
+                    shutil.rmtree(dest)
+            os.symlink(os.path.realpath(manual_src), dest)
+            print("  %-7s manual  -> %s  (LOCAL ONLY, PDF-derived)" % (agent, dest))
 
     if not args.dry_run:
         print("\nInstalled as '%s'. Start a new agent session to pick it up." % name)

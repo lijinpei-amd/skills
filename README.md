@@ -33,12 +33,25 @@ python3 ~/.claude/skills/amd-gpu-isa/scripts/isa.py which V_DOT2_F32_BF16
 | `fetch` | download public AMD sources | `sources/` + `manifest.json` |
 | `xml` | machine-readable ISA → SQLite | `build/isa.db` |
 | `gfx` | LLVM `AMDGPUUsage.rst` → gfx target map | `build/isa.db` (`gfx_target`) |
+| `manual` | ISA PDFs → one markdown page each + 3 TSV indexes | `build/manual/` **(local only)** |
 | `render` | templates + db → the skill | `dist/amd-gpu-isa` |
 | `install` | dist → agent skill directories | `~/.claude/skills`, … |
+| `export` | shareable tarball, PDF-derived content excluded | `dist/*.tar.gz` |
 | `verify` | counts, licence boundary, selftest | — |
 
 `--force` re-downloads, `--link` symlinks instead of copying (for iterating),
-and `--agents claude,codex,pi` selects install targets.
+`--agents claude,codex,pi` selects install targets, and `--manual` additionally
+links the local-only manual pages into the installed skill.
+
+`manual` is the one stage that is not stdlib-only — it needs pymupdf:
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install pymupdf
+python3 build.py manual            # ~55s for 6,058 pages
+python3 build.py install --link --manual
+```
+
+`render` rebuilds `dist/` from scratch, so re-run `install --manual` after it.
 
 ## What gets built
 
@@ -70,10 +83,13 @@ which each file declares `Copyright (c) 2026 Advanced Micro Devices, Inc.`,
 `AMD Public Use`, `License: MIT`. `render.py` emits `NOTICE.md` alongside the
 corpus to carry that attribution, as MIT requires.
 
-Nothing here derives from AMD's ISA reference PDFs. Those grant review rights
-only and forbid passing any part to anyone else, so they are used as background
-reading, never as build input. Every build records `"redistributable": true` in
-`build-info.json`, and `verify` asserts every architecture is MIT/Public Use.
+AMD's ISA reference PDFs grant review rights only and forbid passing any part to
+anyone else. The `manual` stage converts them for **local** use — reading them is
+what the licence permits — and that output never leaves the machine: it lives in
+`build/manual/` (gitignored), is linked rather than copied into the installed
+skill, and `build.py export` is the single command that produces a shareable
+artifact, excluding it. `verify` runs an export and inspects the tarball rather
+than trusting the exclusion.
 
 ## Status
 

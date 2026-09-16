@@ -127,10 +127,14 @@ def main():
     isa_py = open(os.path.join(TEMPLATE_DIR, "scripts", "isa.py"), encoding="utf-8").read()
     n_selftests = isa_py.count('", ["') if "SELFTESTS" in isa_py else 0
 
+    # Whether the manual pages exist is a property of the *install*, not of
+    # dist/, so describe both states rather than guessing at build time.
     pdf_status = (
-        "Pseudocode and prose live in AMD's ISA reference PDFs, which grant "
-        "review rights only and are not redistributable, so they are not built "
-        "into this corpus. Read them directly when you need them.")
+        "If `manual/` is present beside this file, `isa.py manual` searches the "
+        "ISA reference manuals page by page and `show` links the definition "
+        "page. Those pages are built locally from AMD's PDFs, which grant review "
+        "rights only -- they are never part of a shared copy of this skill. If "
+        "`manual/` is absent, build it with the amdgpu-isa-builder skill.")
 
     tmpl = string.Template(
         open(os.path.join(TEMPLATE_DIR, "SKILL.md.tmpl"), encoding="utf-8").read())

@@ -118,6 +118,24 @@ def verify_dist_purity(dist):
     return True
 
 
+def verify_export(dist):
+    """The export is the licence boundary, so test it rather than trust it."""
+    import tarfile, tempfile, subprocess as sp
+    with tempfile.TemporaryDirectory() as tmp:
+        out = os.path.join(tmp, "export.tar.gz")
+        r = sp.run([sys.executable, os.path.join(ROOT, "builder", "export.py"),
+                    "--src", dist, "--out", out], capture_output=True, text=True)
+        if r.returncode != 0:
+            return check("export excludes PDF-derived content", False,
+                         (r.stderr.strip().splitlines() or [""])[-1][:60])
+        with tarfile.open(out) as tar:
+            names = tar.getnames()
+    bad = [n for n in names if "/manual/" in n or n.endswith((".pdf", ".xml"))]
+    return check("export excludes PDF-derived content", not bad,
+                 "%d files, none PDF-derived" % len(names) if not bad
+                 else ", ".join(bad[:3]))
+
+
 def verify_answers(dist):
     isa = os.path.join(dist, "scripts", "isa.py")
     if not os.path.exists(isa):
@@ -159,6 +177,7 @@ def main():
     if os.path.isdir(args.dist):
         verify_dist_purity(args.dist)
         verify_skill_text(args.dist)
+        verify_export(args.dist)
         verify_answers(args.dist)
 
     if failures:

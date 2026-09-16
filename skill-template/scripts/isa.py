@@ -147,6 +147,11 @@ def cmd_show(conn, args):
             for line in key:
                 print(line)
 
+    page = manual_page_for(canonical, arch)
+    if page:
+        print("\n## manual\n  %s  (printed p.%s)  -- semantics, pseudocode, notes"
+              % (page["path"], page["page_printed"]))
+
 
 def cmd_which(conn, args):
     hits = resolve(conn, args.name)
@@ -256,6 +261,88 @@ def cmd_diff(conn, args):
         print()
 
 
+MANUAL = os.path.join(SKILL_ROOT, "manual")
+
+
+def manual_rows(name, want=None):
+    """Read one of the manual TSV indexes. Plain files, so grep works too."""
+    path = os.path.join(MANUAL, name)
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as fh:
+        cols = fh.readline().rstrip("\n").split("\t")
+        out = []
+        for line in fh:
+            row = dict(zip(cols, line.rstrip("\n").split("\t")))
+            if want and any(row.get(k) != v for k, v in want.items() if v):
+                continue
+            out.append(row)
+    return out
+
+
+def manual_page_for(inst, arch):
+    """Definition page of an instruction, if the manuals are installed."""
+    rows = [r for r in manual_rows("instr-index.tsv",
+                                   {"instruction": inst, "arch": arch})
+            if r["kind"] == "definition"]
+    return rows[0] if rows else None
+
+
+def cmd_manual(conn, args):
+    if not os.path.isdir(MANUAL):
+        die("the ISA manuals are not installed here",
+            "build them locally: .venv/bin/python builder/pdf_to_manual.py"
+            " && build.py install --manual")
+
+    if args.toc:
+        rows = manual_rows("toc.tsv", {"arch": args.arch})
+        if args.level:
+            rows = [r for r in rows if int(r["level"]) <= args.level]
+        emit(rows[:args.limit or None], args, len(rows))
+        return
+
+    if args.inst:
+        rows = manual_rows("instr-index.tsv",
+                           {"instruction": args.inst.upper(), "arch": args.arch})
+        if not rows:
+            die("no manual page for %r%s" % (args.inst, " in " + args.arch if args.arch else ""),
+                "isa.py which %s   # which archs have it at all" % args.inst.upper())
+        emit(rows, args, len(rows))
+        return
+
+    if args.format:
+        rows = manual_rows("format-index.tsv",
+                           {"encoding": args.format.upper(), "arch": args.arch})
+        if not rows:
+            die("no manual page for encoding %r" % args.format,
+                "isa.py encodings --arch %s" % (args.arch or "rdna4"))
+        emit(rows, args, len(rows))
+        return
+
+    if args.grep:
+        pat = re.compile(args.grep, re.I)
+        archs = [args.arch] if args.arch else sorted(
+            d for d in os.listdir(MANUAL) if os.path.isdir(os.path.join(MANUAL, d)))
+        hits = []
+        for a in archs:
+            d = os.path.join(MANUAL, a)
+            for f in sorted(os.listdir(d)):
+                if not f.endswith(".md"):
+                    continue
+                p = os.path.join(d, f)
+                for n, line in enumerate(open(p, encoding="utf-8"), 1):
+                    if pat.search(line):
+                        hits.append({"arch": a, "path": "%s/%s" % (a, f),
+                                     "line": n, "text": line.strip()[:90]})
+        if not hits:
+            die("no match for %r in the manuals" % args.grep)
+        emit(hits[:args.limit or None], args, len(hits))
+        return
+
+    die("nothing to do", "isa.py manual --inst V_FMA_F32 --arch rdna4"
+                         " | --grep 'wait state' | --toc --arch rdna4")
+
+
 def cmd_gfx(conn, args):
     """gfx target -> architecture, or the whole map."""
     if args.target:
@@ -346,24 +433,34 @@ SELFTESTS = [
     ("arch diff", ["diff", "cdna4", "cdna5", "-n", "5"]),
     ("gfx target lookup", ["gfx", "gfx950"]),
     ("gfx trap: gfx1250", ["gfx", "gfx1250"]),
+    # These need the local-only manual pages; skipped on a shareable install.
+    ("manual definition page", ["manual", "--inst", "V_FMA_F32", "--arch", "rdna4"]),
+    ("manual toc", ["manual", "--toc", "--arch", "rdna4", "--level", "1", "-n", "5"]),
     ("raw sql", ["sql", "SELECT arch, COUNT(*) FROM v_presence GROUP BY arch"]),
 ]
 
 
 def cmd_selftest(conn, args):
     import subprocess
-    ok = 0
+    have_manual = os.path.isdir(MANUAL)
+    ok = run = skipped = 0
     for label, argv in SELFTESTS:
+        if argv[0] == "manual" and not have_manual:
+            print("skip %-24s (manual pages not installed here)" % label)
+            skipped += 1
+            continue
+        run += 1
         r = subprocess.run([sys.executable, os.path.realpath(__file__)] + argv,
                            capture_output=True, text=True)
-        status = "ok  " if r.returncode == 0 else "FAIL"
         if r.returncode == 0:
             ok += 1
-        print("%s %-24s isa.py %s" % (status, label, " ".join(argv)))
+        print("%s %-24s isa.py %s"
+              % ("ok  " if r.returncode == 0 else "FAIL", label, " ".join(argv)))
         if r.returncode != 0:
             print("     %s" % (r.stderr.strip().splitlines() or [""])[0])
-    print("\n%d/%d examples passed" % (ok, len(SELFTESTS)))
-    return 0 if ok == len(SELFTESTS) else 1
+    print("\n%d/%d examples passed%s"
+          % (ok, run, ", %d skipped" % skipped if skipped else ""))
+    return 0 if ok == run else 1
 
 
 def main():
@@ -402,6 +499,16 @@ def main():
     p = sub.add_parser(parents=[common], name="diff", help="what changed between two archs")
     p.add_argument("arch_a"); p.add_argument("arch_b"); p.add_argument("--group")
     p.set_defaults(fn=cmd_diff)
+
+    p = sub.add_parser(parents=[common], name="manual",
+                       help="the ISA manuals: definition pages, TOC, full text")
+    p.add_argument("--inst", help="definition page of an instruction")
+    p.add_argument("--format", help="pages documenting an encoding")
+    p.add_argument("--grep", help="search the manual text (regex)")
+    p.add_argument("--toc", action="store_true", help="table of contents")
+    p.add_argument("--level", type=int, help="with --toc: max outline depth")
+    p.add_argument("--arch")
+    p.set_defaults(fn=cmd_manual)
 
     p = sub.add_parser(parents=[common], name="gfx",
                        help="gfx target -> architecture (gfx950 -> cdna4)")

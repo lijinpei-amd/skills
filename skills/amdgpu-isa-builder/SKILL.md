@@ -36,12 +36,25 @@ never re-run it for a text change.
 | `fetch` | download public AMD sources | `sources/` + `manifest.json` |
 | `xml` | machine-readable ISA → SQLite | `build/isa.db` |
 | `gfx` | LLVM `AMDGPUUsage.rst` → gfx target map | `build/isa.db` (`gfx_target`) |
+| `manual` | ISA PDFs → markdown pages + TSV indexes | `build/manual/` **(local only)** |
 | `render` | templates + db → the skill | `dist/amd-gpu-isa` |
 | `install` | dist → agent skill directories | `~/.claude/skills`, … |
+| `export` | shareable tarball, PDF-derived content excluded | `dist/*.tar.gz` |
 | `verify` | counts, licence boundary, selftest | — |
 
 Useful flags: `--force` (re-download), `--link` (symlink instead of copy, for
-iterating), `--agents claude,codex,pi`.
+iterating), `--agents claude,codex,pi`, `--manual` (also link the local-only
+manual pages into the installed skill).
+
+The `manual` stage needs pymupdf, the only non-stdlib dependency:
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install pymupdf
+python3 $B/build.py manual                       # ~55s, 6,058 pages
+python3 $B/build.py install --link --manual
+```
+
+`render` recreates `dist/` from scratch, so re-run `install --manual` after it.
 
 ## The licence boundary — do not blur it
 
@@ -56,12 +69,15 @@ Two regimes, and they must not mix:
 So the builder uses **only** the XML. The PDFs are fetched for human reading and
 are never parsed into the corpus — which is why the skill has no pseudocode.
 
-If you are ever asked to add pseudocode, notes or figures from the manuals: that
-output cannot leave this machine, and it must not go into `isa.db`. Put it in a
-database of its own and attach it at query time, so "can this be shared?" stays a
-question about which file to copy rather than a column-by-column audit. Mixing
-the two is how a previous version of this corpus made all 11,963 of its files
-unpublishable at once.
+The `manual` stage converts the PDFs for local reading — which is exactly what
+the licence permits — into `build/manual/`. That output is gitignored, linked
+rather than copied into the installed skill, and excluded by `build.py export`.
+
+**Never publish `build/manual/`, and never copy `dist/` by hand to share it.**
+Use `build.py export`, which writes a tarball and then inspects it to prove no
+PDF-derived file got in. If you are asked to add manual content to `isa.db`,
+don't: keeping the two apart by file is what makes the shipping decision a
+one-line check instead of a column-by-column audit.
 
 **Never** commit anything from `sources/`, `build/` or `dist/`, and never publish
 a build whose `build-info.json` says `"redistributable": false`. `build.py verify`
