@@ -66,10 +66,8 @@ Two regimes, and they must not mix:
   Specification Agreement: *"You may not (i) duplicate any part of the
   Specification … or (iii) give any part of the Specification … to anyone else."*
 
-So the builder uses **only** the XML. The PDFs are fetched for human reading and
-are never parsed into the corpus — which is why the skill has no pseudocode.
-
-The `manual` stage converts the PDFs for local reading — which is exactly what
+So `isa.db` is built from the XML alone, and is shareable. The `manual` stage
+converts the PDFs for local reading — which is exactly what
 the licence permits — into `build/manual/`. That output is gitignored, linked
 rather than copied into the installed skill, and excluded by `build.py export`.
 
@@ -100,7 +98,9 @@ may need looking up in `https://docs.amd.com/api/khub/documents`.
 ## Checking the result
 
 ```bash
-python3 $B/dist/amd-gpu-isa/scripts/isa.py selftest      # must be 10/10
+python3 $B/dist/amd-gpu-isa/scripts/isa.py selftest   # all must pass; the two
+                                                     # manual cases report as
+                                                     # skipped without --manual
 python3 $B/build.py verify
 ```
 
