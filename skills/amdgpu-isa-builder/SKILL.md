@@ -35,6 +35,7 @@ never re-run it for a text change.
 |---|---|---|
 | `fetch` | download public AMD sources | `sources/` + `manifest.json` |
 | `xml` | machine-readable ISA → SQLite | `build/isa.db` |
+| `gfx` | LLVM `AMDGPUUsage.rst` → gfx target map | `build/isa.db` (`gfx_target`) |
 | `render` | templates + db → the skill | `dist/amd-gpu-isa` |
 | `install` | dist → agent skill directories | `~/.claude/skills`, … |
 | `verify` | counts, licence boundary, selftest | — |
@@ -86,4 +87,16 @@ python3 $B/build.py verify
 `verify` re-derives instruction counts from the raw XML through a different code
 path than the builder uses, so a parser bug cannot hide by agreeing with itself.
 Expect 11,953 instructions / 40,059 encodings / 137,824 operands across 10
-architectures.
+architectures, and 28 gfx targets mapped.
+
+## The gfx map needs care
+
+`gfx_to_db.py` parses LLVM's processor table. LLVM groups processors by *encoding*
+generation, which is not the product architecture: `gfx1250` sits under "GCN GFX12
+(RDNA 4)" but is CDNA 5, and "GCN GFX9 (Vega)" covers Vega plus CDNA 1-4. The
+RDNA headings are trusted; the GFX9 block and `gfx125x` are overridden in
+`OVERRIDES`, each row carrying its evidence into the `basis` column.
+
+When AMD ships a new architecture, add its gfx targets there rather than trusting
+the heading — and run `build.py verify`, which fails if any arch has no gfx target
+or if a known trap regresses.

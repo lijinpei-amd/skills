@@ -250,6 +250,45 @@ def cmd_diff(conn, args):
         print()
 
 
+def cmd_gfx(conn, args):
+    """gfx target -> architecture, or the whole map."""
+    if args.target:
+        t = args.target.lower()
+        if not t.startswith("gfx"):
+            t = "gfx" + t
+        r = conn.execute("SELECT * FROM v_gfx WHERE gfx = ?", (t,)).fetchone()
+        if not r:
+            near = conn.execute("SELECT gfx FROM gfx_target WHERE gfx LIKE ?"
+                                " ORDER BY gfx LIMIT 5", (t[:6] + "%",)).fetchall()
+            die("unknown gfx target %r" % args.target,
+                ("did you mean %s?" % ", ".join(x[0] for x in near)) if near
+                else "isa.py gfx   # lists every target")
+        if args.json:
+            emit([r], args, 1)
+            return
+        if r["arch"]:
+            print("%s -> %s (%s)" % (r["gfx"], r["arch"], r["architecture_name"]))
+        else:
+            print("%s -> not in this corpus" % r["gfx"])
+        print("  basis:            %s" % r["basis"])
+        print("  LLVM generation:  %s   <- encoding family, not the product arch"
+              % r["llvm_generation"])
+        if r["products"]:
+            print("  products:         %s" % r["products"])
+        if r["arch"]:
+            n = conn.execute("SELECT COUNT(*) FROM v_presence WHERE arch = ?",
+                             (r["arch"],)).fetchone()[0]
+            print("\n%d instructions. Try: isa.py list --arch %s --group VALU"
+                  % (n, r["arch"]))
+        return
+
+    q = "SELECT gfx, arch, llvm_generation, products FROM v_gfx"
+    if args.arch:
+        q += " WHERE arch = '%s'" % args.arch.replace("'", "")
+    rows, total = limited(conn, q + " ORDER BY gfx", [], args)
+    emit(rows, args, total)
+
+
 def cmd_archs(conn, args):
     rows = conn.execute(
         "SELECT a.arch, a.architecture_name, a.release_date, a.schema_version,"
@@ -304,6 +343,8 @@ SELFTESTS = [
     ("list a group", ["list", "--arch", "cdna5", "--group", "VALU", "-n", "5"]),
     ("encoding bit layout", ["encodings", "--arch", "rdna4", "--encoding", "ENC_VOP3"]),
     ("arch diff", ["diff", "cdna4", "cdna5", "-n", "5"]),
+    ("gfx target lookup", ["gfx", "gfx950"]),
+    ("gfx trap: gfx1250", ["gfx", "gfx1250"]),
     ("raw sql", ["sql", "SELECT arch, COUNT(*) FROM v_presence GROUP BY arch"]),
 ]
 
@@ -360,6 +401,12 @@ def main():
     p = sub.add_parser(parents=[common], name="diff", help="what changed between two archs")
     p.add_argument("arch_a"); p.add_argument("arch_b"); p.add_argument("--group")
     p.set_defaults(fn=cmd_diff)
+
+    p = sub.add_parser(parents=[common], name="gfx",
+                       help="gfx target -> architecture (gfx950 -> cdna4)")
+    p.add_argument("target", nargs="?", help="e.g. gfx950; omit to list all")
+    p.add_argument("--arch", help="list only targets of this arch")
+    p.set_defaults(fn=cmd_gfx)
 
     sub.add_parser(parents=[common], name="archs", help="architectures in the corpus").set_defaults(fn=cmd_archs)
 

@@ -5,10 +5,11 @@ Stages, each independently runnable so a slow one is never re-run for free:
 
     fetch     download public AMD sources    -> sources/   (network)
     xml       machine-readable ISA -> SQLite -> build/isa.db
+    gfx       LLVM AMDGPUUsage -> gfx map    -> build/isa.db (gfx_target)
     render    templates + db -> the skill    -> dist/amd-gpu-isa
     install   dist -> agent skills directories
     verify    counts, licence boundary, selftest
-    all       fetch + xml + render + verify
+    all       fetch + xml + gfx + render + verify
 
 Nothing AMD-derived is ever committed: sources/, build/ and dist/ are ignored,
 and `verify` fails the build if git is tracking any of it.
@@ -40,7 +41,7 @@ def run(script, argv, label):
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("stage", choices=["fetch", "xml", "render", "install",
+    ap.add_argument("stage", choices=["fetch", "xml", "gfx", "render", "install",
                                       "verify", "all"])
     ap.add_argument("--link", action="store_true", help="install: symlink, don't copy")
     ap.add_argument("--agents", default="claude,codex,pi")
@@ -52,6 +53,8 @@ def main():
             "fetch public AMD sources")
     if args.stage in ("xml", "all"):
         run("xml_to_db.py", extra, "machine-readable ISA -> isa.db")
+    if args.stage in ("gfx", "all"):
+        run("gfx_to_db.py", extra, "LLVM AMDGPUUsage -> gfx target map")
     if args.stage in ("render", "all"):
         run("render.py", extra, "render the skill")
     if args.stage == "install":

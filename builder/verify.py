@@ -59,6 +59,33 @@ def verify_counts(db):
     return check("instruction counts match XML, all archs", all_ok)
 
 
+def verify_gfx_map(db):
+    """Every arch must be reachable from some gfx target, and the two mappings
+    LLVM gets wrong must be right here."""
+    conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    tables = {r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'")}
+    if "gfx_target" not in tables:
+        conn.close()
+        return check("gfx map present", False, "run 'build.py gfx'")
+    missing = [r[0] for r in conn.execute(
+        "SELECT arch FROM arch WHERE arch NOT IN"
+        " (SELECT arch FROM gfx_target WHERE arch IS NOT NULL)")]
+    check("every arch has a gfx target", not missing, ", ".join(missing))
+    # The cases where LLVM's own grouping disagrees with the product arch.
+    ok = True
+    for gfx, want in (("gfx1250", "cdna5"), ("gfx950", "cdna4"),
+                      ("gfx942", "cdna3"), ("gfx1201", "rdna4")):
+        got = conn.execute("SELECT arch FROM gfx_target WHERE gfx=?", (gfx,)).fetchone()
+        if not got or got[0] != want:
+            ok = False
+            check("gfx map %s -> %s" % (gfx, want), False,
+                  "got %s" % (got[0] if got else "missing"))
+    conn.close()
+    return check("gfx map: encoding-generation traps handled", ok)
+
+
 def verify_licence_boundary():
     """The .gitignore is the licence boundary; assert git is not tracking any
     AMD-derived artefact."""
@@ -128,6 +155,8 @@ def main():
     print("verify:")
     if os.path.exists(db) and not args.quick:
         verify_counts(db)
+    if os.path.exists(db):
+        verify_gfx_map(db)
     verify_licence_boundary()
     if os.path.isdir(args.dist):
         verify_dist_purity(args.dist)

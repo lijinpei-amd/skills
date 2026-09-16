@@ -42,6 +42,8 @@ anywhere python3 does.
 | microcode bit layout of an encoding | `isa.py encodings --arch rdna4 --encoding ENC_VOP3` |
 | all encodings in an arch | `isa.py encodings --arch rdna4` |
 | what changed between two archs | `isa.py diff cdna4 cdna5 [--group SMEM]` |
+| which arch is this gfx target? | `isa.py gfx gfx950` (`gfx` prefix optional) |
+| gfx targets of an arch | `isa.py gfx --arch cdna5` |
 | arch / group overview | `isa.py archs`, `isa.py groups --arch cdna5` |
 | anything else | `isa.py sql "<SELECT ...>"` |
 | verify the corpus answers correctly | `isa.py selftest` ($n_selftests examples) |
@@ -65,6 +67,7 @@ v_presence  arch, name, "group", n_encodings, opcode      -- one row per (name, 
 v_name      arch, query_name, canonical_name, is_alias    -- alias resolution
 v_operand   arch, name, encoding, ord, field_name, operand_type, data_format,
             size, is_input, is_output, is_implicit
+v_gfx       gfx, arch, architecture_name, llvm_generation, kind, products, basis
 ```
 
 ```bash
@@ -83,9 +86,13 @@ cannot damage the corpus. Base tables — `instruction`, `inst_encoding`,
 - **Structure only, no semantics.** The XML carries names, encodings, opcodes,
   operands and one-line descriptions. It has no pseudocode and no prose.
   $enrich_status
-- **No gfx target mapping.** The XML names no gfx targets, so "is gfx950 CDNA4"
-  cannot be answered from this corpus. Check `llvm/lib/Target/AMDGPU/GCNProcessors.td`
-  in an LLVM checkout.
+- **gfx mapping is LLVM's, not AMD's.** The XML names no gfx targets; the map
+  comes from LLVM's `AMDGPUUsage.rst`. Beware that LLVM's headings are *encoding*
+  generations, not product architectures — it files `gfx1250` under "GCN GFX12
+  (RDNA 4)" although that is CDNA 5 hardware, and lumps all of Vega and CDNA 1-4
+  under "GCN GFX9". `isa.py gfx` reports both, and prints the basis for each
+  mapping. Vega and older targets resolve to no arch: AMD published no
+  machine-readable spec for them.
 - **Not cross-checked against LLVM.** Where this corpus and
   `llvm/lib/Target/AMDGPU/*.td` disagree, LLVM is what the compiler actually
   does; this is what AMD published.

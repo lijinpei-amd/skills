@@ -32,6 +32,7 @@ python3 ~/.claude/skills/amd-gpu-isa/scripts/isa.py which V_DOT2_F32_BF16
 |---|---|---|
 | `fetch` | download public AMD sources | `sources/` + `manifest.json` |
 | `xml` | machine-readable ISA → SQLite | `build/isa.db` |
+| `gfx` | LLVM `AMDGPUUsage.rst` → gfx target map | `build/isa.db` (`gfx_target`) |
 | `render` | templates + db → the skill | `dist/amd-gpu-isa` |
 | `install` | dist → agent skill directories | `~/.claude/skills`, … |
 | `verify` | counts, licence boundary, selftest | — |
@@ -81,6 +82,9 @@ structural rather than semantic: it has instruction names, encodings, opcodes,
 operands and one-line descriptions, but no pseudocode or prose — that lives in
 the PDFs, which cannot be redistributed.
 
-The gfx-target→arch mapping is absent, because the XML names no gfx targets.
-Deriving it from LLVM's `GCNProcessors.td` is the most useful thing to add next;
-`AMDGPUUsage.rst` is already fetched for it.
+The gfx-target→arch map is derived from LLVM's `AMDGPUUsage.rst`, not
+hand-written. Note that LLVM's headings are *encoding* generations rather than
+product architectures — it files `gfx1250` under "GCN GFX12 (RDNA 4)" though the
+hardware is CDNA 5, and puts Vega and CDNA 1-4 together under "GCN GFX9". The
+RDNA headings are taken as-is; the GFX9 block and `gfx125x` are overridden, each
+with its evidence recorded in the `basis` column. `verify` asserts those cases.
