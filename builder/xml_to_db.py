@@ -2,9 +2,9 @@
 """Build isa.db from AMD's machine-readable ISA XML.
 
 Everything this produces derives solely from the MIT-licensed, "AMD Public Use"
-XML -- no PDF content reaches this database. That boundary is structural: PDF
-material lives in a separate enrich.db that the query CLI attaches when present,
-so shipping decisions are per-file rather than per-column.
+XML. AMD's ISA reference PDFs grant review rights only, so nothing derived from
+them is built here -- the corpus is structural, not semantic, and that is a
+licence consequence rather than a technical one.
 
 Stdlib only (xml.etree + sqlite3), parsed with iterparse so a 17 MB spec does not
 have to be held in memory as a tree.
@@ -175,9 +175,13 @@ UNION ALL
 SELECT i.arch, a.alias, i.name, 1
 FROM instruction_alias a JOIN instruction i USING (inst_id);
 
+-- One instruction can appear several times under the same encoding name with
+-- different EncodingConditions (e.g. a literal vs non-literal form), and those
+-- differ in their operands -- so condition belongs here, or the rows look like
+-- duplicates.
 CREATE VIEW v_operand AS
-SELECT i.arch, i.name, e.encoding_name AS encoding, o.ord,
-       o.field_name, o.operand_type, o.data_format, o.size,
+SELECT i.arch, i.name, e.encoding_name AS encoding, e.condition AS condition,
+       o.ord, o.field_name, o.operand_type, o.data_format, o.size,
        o.is_input, o.is_output, o.is_implicit
 FROM operand o
 JOIN inst_encoding e USING (ie_id)

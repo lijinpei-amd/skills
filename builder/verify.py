@@ -4,8 +4,8 @@
 Three kinds of check:
   * counts   -- re-derive instruction/encoding/operand totals straight from the
                 XML with an independent code path, and compare against the DB
-  * licence  -- assert no AMD-derived file is tracked by git, and that a
-                redistributable dist/ contains nothing PDF-derived
+  * licence  -- assert no AMD-derived file is tracked by git, and that every
+                architecture shipped is MIT / "AMD Public Use"
   * answers  -- run the query CLI's own selftest against the rendered skill
 
 Usage:  python3 builder/verify.py [--quick]
@@ -106,11 +106,9 @@ def verify_dist_purity(dist):
     if not os.path.exists(info_path):
         return check("dist declares its redistribution status", False)
     info = json.load(open(info_path))
-    has_enrich = os.path.exists(os.path.join(dist, "data", "enrich.db"))
-    consistent = info.get("includes_pdf_derived") == has_enrich
-    check("build-info matches dist contents", consistent,
-          "declares %s, enrich.db %s"
-          % (info.get("includes_pdf_derived"), "present" if has_enrich else "absent"))
+    check("dist declares itself redistributable, XML-derived only",
+          info.get("redistributable") is True
+          and info.get("includes_pdf_derived") is False)
     if info.get("redistributable"):
         conn = sqlite3.connect(os.path.join(dist, "data", "isa.db"))
         lic = conn.execute("SELECT DISTINCT license, sensitivity FROM arch").fetchall()

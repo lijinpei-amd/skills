@@ -54,10 +54,14 @@ Two regimes, and they must not mix:
   Specification … or (iii) give any part of the Specification … to anyone else."*
 
 So the builder uses **only** the XML. The PDFs are fetched for human reading and
-are never parsed into the corpus — which is why the skill has no pseudocode. If
-you are ever asked to add pseudocode, notes or figures from the manuals, that
-output must stay on this machine: build it into a separate `enrich.db` (isa.py
-already attaches one when present) and never into `isa.db`.
+are never parsed into the corpus — which is why the skill has no pseudocode.
+
+If you are ever asked to add pseudocode, notes or figures from the manuals: that
+output cannot leave this machine, and it must not go into `isa.db`. Put it in a
+database of its own and attach it at query time, so "can this be shared?" stays a
+question about which file to copy rather than a column-by-column audit. Mixing
+the two is how a previous version of this corpus made all 11,963 of its files
+unpublishable at once.
 
 **Never** commit anything from `sources/`, `build/` or `dist/`, and never publish
 a build whose `build-info.json` says `"redistributable": false`. `build.py verify`

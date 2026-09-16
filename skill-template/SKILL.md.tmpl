@@ -65,8 +65,8 @@ schema; these flattened views answer most questions with no join:
 v_inst      arch, name, "group", encoding, opcode, condition, description
 v_presence  arch, name, "group", n_encodings, opcode      -- one row per (name, arch)
 v_name      arch, query_name, canonical_name, is_alias    -- alias resolution
-v_operand   arch, name, encoding, ord, field_name, operand_type, data_format,
-            size, is_input, is_output, is_implicit
+v_operand   arch, name, encoding, condition, ord, field_name, operand_type,
+            data_format, size, is_input, is_output, is_implicit
 v_gfx       gfx, arch, architecture_name, llvm_generation, kind, products, basis
 ```
 
@@ -85,7 +85,7 @@ cannot damage the corpus. Base tables — `instruction`, `inst_encoding`,
 
 - **Structure only, no semantics.** The XML carries names, encodings, opcodes,
   operands and one-line descriptions. It has no pseudocode and no prose.
-  $enrich_status
+  $pdf_status
 - **gfx mapping is LLVM's, not AMD's.** The XML names no gfx targets; the map
   comes from LLVM's `AMDGPUUsage.rst`. Beware that LLVM's headings are *encoding*
   generations, not product architectures — it files `gfx1250` under "GCN GFX12

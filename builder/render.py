@@ -106,10 +106,6 @@ def main():
     isa_db = os.path.join(BUILD, "isa.db")
     if not os.path.exists(isa_db):
         sys.exit("no build/isa.db -- run 'build.py xml' first")
-    # XML-derived only, always. There is no PDF stage: AMD's ISA reference
-    # PDFs are not redistributable, so nothing derived from them is built here.
-    use_enrich = False
-
     if os.path.exists(args.out):
         shutil.rmtree(args.out)
     os.makedirs(os.path.join(args.out, "data"))
@@ -131,7 +127,7 @@ def main():
     isa_py = open(os.path.join(TEMPLATE_DIR, "scripts", "isa.py"), encoding="utf-8").read()
     n_selftests = isa_py.count('", ["') if "SELFTESTS" in isa_py else 0
 
-    enrich_status = (
+    pdf_status = (
         "Pseudocode and prose live in AMD's ISA reference PDFs, which grant "
         "review rights only and are not redistributable, so they are not built "
         "into this corpus. Read them directly when you need them.")
@@ -148,7 +144,7 @@ def main():
         built=info.get("built", "?").split()[0],
         source_desc=info.get("source", "AMD machine-readable ISA XML"),
         n_selftests=n_selftests,
-        enrich_status=enrich_status,
+        pdf_status=pdf_status,
         rebuild_hint=REBUILD_HINT,
         notice_line=("Instruction data: AMD machine-readable ISA XML, MIT / "
                      "\"AMD Public Use\". See NOTICE.md."),
@@ -175,8 +171,10 @@ def main():
         "built": time.strftime("%Y-%m-%d %H:%M:%S"),
         "archs": archs,
         "counts": {k[6:]: int(v) for k, v in info.items() if k.startswith("count_")},
-        "includes_pdf_derived": use_enrich,
-        "redistributable": not use_enrich,
+        # XML-derived only, always: AMD's ISA reference PDFs are not
+        # redistributable, so nothing derived from them is ever built.
+        "includes_pdf_derived": False,
+        "redistributable": True,
         "sources": sources,
     }, open(os.path.join(args.out, "build-info.json"), "w"), indent=2)
 

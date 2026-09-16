@@ -4,9 +4,7 @@
 Stdlib only -- no sqlite3 CLI binary required (it is often absent), no pip
 install, same behaviour under Claude Code, Codex and pi.
 
-The database is opened read-only. If enrich.db sits next to isa.db it is
-attached automatically; that file holds PDF-derived pseudocode and notes and is
-local-only, so every command works with or without it.
+The database is opened read-only.
 
 Run `isa.py --help` for subcommands, or `isa.py schema` to write your own SQL.
 """
@@ -21,7 +19,6 @@ import sys
 HERE = os.path.dirname(os.path.realpath(__file__))
 SKILL_ROOT = os.path.dirname(HERE)
 DB = os.path.join(SKILL_ROOT, "data", "isa.db")
-ENRICH = os.path.join(SKILL_ROOT, "data", "enrich.db")
 DEFAULT_LIMIT = 50
 
 
@@ -31,13 +28,7 @@ def connect():
                  "Rebuild it with the amdgpu-isa-builder skill." % DB)
     conn = sqlite3.connect("file:%s?mode=ro" % DB, uri=True)
     conn.row_factory = sqlite3.Row
-    if os.path.exists(ENRICH):
-        conn.execute("ATTACH DATABASE ? AS enrich", ("file:%s?mode=ro" % ENRICH,))
     return conn
-
-
-def has_enrich(conn):
-    return any(r[1] == "enrich" for r in conn.execute("PRAGMA database_list"))
 
 
 def die(msg, hint=None):
@@ -122,24 +113,39 @@ def cmd_show(conn, args):
         return
     arch = args.arch or rows[0]["arch"]
     ops = conn.execute(
-        "SELECT ord, field_name, operand_type, data_format, size,"
-        " is_input, is_output FROM v_operand"
-        " WHERE name = ? AND arch = ? ORDER BY encoding, ord",
+        "SELECT encoding, condition, ord, field_name, operand_type,"
+        " data_format, size, is_input, is_output FROM v_operand"
+        " WHERE name = ? AND arch = ? ORDER BY encoding, condition, ord",
         (canonical, arch)).fetchall()
     if ops:
-        print("\n## operands (%s)" % arch)
+        # One instruction usually has several encodings with identical operand
+        # lists. Printing them back to back without the encoding name reads as
+        # duplicated output, so group and label -- and collapse exact repeats.
+        by_enc, order = {}, []
         for o in ops:
-            io = ("in" if o["is_input"] else "") + ("out" if o["is_output"] else "")
-            print("  %-2s %-10s %-18s %-14s %sb %s"
-                  % (o["ord"], o["field_name"] or "-", o["operand_type"],
-                     o["data_format"], o["size"], io))
+            key = (o["encoding"] if o["condition"] in (None, "default")
+                   else "%s [%s]" % (o["encoding"], o["condition"]))
+            by_enc.setdefault(key, []).append(o)
+            if key not in order:
+                order.append(key)
 
-    if has_enrich(conn):
-        e = conn.execute("SELECT pseudocode, notes FROM enrich.inst_detail"
-                         " WHERE name = ? AND arch = ?", (canonical, arch)).fetchone()
-        if e and e["pseudocode"]:
-            print("\n## pseudocode (%s, from the ISA manual -- local only)" % arch)
-            print(e["pseudocode"])
+        def render(rows):
+            return ["  %-2s %-10s %-18s %-14s %sb %s"
+                    % (o["ord"], o["field_name"] or "-", o["operand_type"],
+                       o["data_format"], o["size"],
+                       ("in" if o["is_input"] else "")
+                       + ("out" if o["is_output"] else ""))
+                    for o in rows]
+
+        seen = {}
+        for enc in order:
+            key = tuple(render(by_enc[enc]))
+            seen.setdefault(key, []).append(enc)
+        print("\n## operands (%s)" % arch)
+        for key, encs in seen.items():
+            print("\n  %s:" % ", ".join(encs))
+            for line in key:
+                print(line)
 
 
 def cmd_which(conn, args):
@@ -326,11 +332,6 @@ def cmd_schema(conn, args):
                           " WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%'"
                           " AND name NOT LIKE 'fts_inst_%' ORDER BY type DESC, name"):
         print(r["sql"].strip() + ";\n")
-    if has_enrich(conn):
-        print("-- enrich.db attached (PDF-derived, local only):")
-        for r in conn.execute("SELECT sql FROM enrich.sqlite_master"
-                              " WHERE sql IS NOT NULL"):
-            print(r[0].strip() + ";\n")
 
 
 SELFTESTS = [
