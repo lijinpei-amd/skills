@@ -32,14 +32,12 @@ python3 ~/.claude/skills/amd-gpu-isa/scripts/isa.py which V_DOT2_F32_BF16
 |---|---|---|
 | `fetch` | download public AMD sources | `sources/` + `manifest.json` |
 | `xml` | machine-readable ISA → SQLite | `build/isa.db` |
-| `pdf` | ISA manuals → pseudocode/notes | `build/enrich.db` *(local only, not yet implemented)* |
 | `render` | templates + db → the skill | `dist/amd-gpu-isa` |
 | `install` | dist → agent skill directories | `~/.claude/skills`, … |
 | `verify` | counts, licence boundary, selftest | — |
 
 `--force` re-downloads, `--link` symlinks instead of copying (for iterating),
-`--agents claude,codex,pi` selects targets, `--with-enrich` includes PDF-derived
-data and marks the result local-only.
+and `--agents claude,codex,pi` selects install targets.
 
 ## What gets built
 
@@ -53,7 +51,7 @@ machines lack one.
 
 ```
 build.py              entry point
-builder/              fetch, xml_to_db, pdf_to_db, render, install, verify
+builder/              fetch, xml_to_db, render, install, verify
 skill-template/       SKILL.md.tmpl + scripts/isa.py -- the shipped skill payload
 skills/               the amdgpu-isa-builder skill itself (publishable)
 sources/  build/  dist/     gitignored; every AMD-derived byte lives here
@@ -71,14 +69,18 @@ which each file declares `Copyright (c) 2026 Advanced Micro Devices, Inc.`,
 `AMD Public Use`, `License: MIT`. `render.py` emits `NOTICE.md` alongside the
 corpus to carry that attribution, as MIT requires.
 
-Anything built with `--with-enrich` derives from AMD's ISA reference PDFs and is
-**not redistributable**; `build-info.json` records this as
-`"redistributable": false`.
+Nothing here derives from AMD's ISA reference PDFs. Those grant review rights
+only and forbid passing any part to anyone else, so they are used as background
+reading, never as build input. Every build records `"redistributable": true` in
+`build-info.json`, and `verify` asserts every architecture is MIT/Public Use.
 
 ## Status
 
-`fetch`, `xml`, `render`, `install` and `verify` work end to end. `pdf` is not
-implemented yet — the XML-derived corpus is the publishable core and stands on
-its own; PDF enrichment adds pseudocode and notes locally. The gfx-target→arch
-mapping is also absent, because the XML names no gfx targets; it needs deriving
-from LLVM's `GCNProcessors.td`.
+All stages work end to end. The corpus is XML-derived only, which makes it
+structural rather than semantic: it has instruction names, encodings, opcodes,
+operands and one-line descriptions, but no pseudocode or prose — that lives in
+the PDFs, which cannot be redistributed.
+
+The gfx-target→arch mapping is absent, because the XML names no gfx targets.
+Deriving it from LLVM's `GCNProcessors.td` is the most useful thing to add next;
+`AMDGPUUsage.rst` is already fetched for it.

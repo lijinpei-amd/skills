@@ -4,7 +4,7 @@
 The output is self-contained -- isa.db, isa.py, SKILL.md, NOTICE.md -- with no
 path back to this builder and no install path baked into the text.
 
-Usage:  python3 builder/render.py [--with-enrich] [--out DIR]
+Usage:  python3 builder/render.py [--out DIR]
 """
 
 import argparse
@@ -58,14 +58,6 @@ MIT permission notice, as required for redistribution:
 isa.py and the skill text are the work of this builder's author.
 """
 
-ENRICH_NOTICE = """
-NOT REDISTRIBUTABLE -- this install includes enrich.db, built from AMD's ISA
-reference PDFs. Those documents carry a Specification Agreement permitting review
-only: "You may not (i) duplicate any part of the Specification ... or (iii) give
-any part of the Specification ... to anyone else." Keep this install local. To
-produce a shareable copy, rebuild without --with-enrich.
-"""
-
 
 def stats(db):
     conn = sqlite3.connect(db)
@@ -109,18 +101,14 @@ def compress_archs(names):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join(ROOT, "dist", "amd-gpu-isa"))
-    ap.add_argument("--with-enrich", action="store_true",
-                    help="include PDF-derived enrich.db (makes the result local-only)")
     args = ap.parse_args()
 
     isa_db = os.path.join(BUILD, "isa.db")
     if not os.path.exists(isa_db):
         sys.exit("no build/isa.db -- run 'build.py xml' first")
-    enrich_db = os.path.join(BUILD, "enrich.db")
-    use_enrich = args.with_enrich and os.path.exists(enrich_db)
-    if args.with_enrich and not use_enrich:
-        print("  note: --with-enrich given but build/enrich.db does not exist; "
-              "rendering the shareable XML-only skill")
+    # XML-derived only, always. There is no PDF stage: AMD's ISA reference
+    # PDFs are not redistributable, so nothing derived from them is built here.
+    use_enrich = False
 
     if os.path.exists(args.out):
         shutil.rmtree(args.out)
@@ -128,8 +116,6 @@ def main():
     os.makedirs(os.path.join(args.out, "scripts"))
 
     shutil.copy2(isa_db, os.path.join(args.out, "data", "isa.db"))
-    if use_enrich:
-        shutil.copy2(enrich_db, os.path.join(args.out, "data", "enrich.db"))
     shutil.copy2(os.path.join(TEMPLATE_DIR, "scripts", "isa.py"),
                  os.path.join(args.out, "scripts", "isa.py"))
     os.chmod(os.path.join(args.out, "scripts", "isa.py"), 0o755)
@@ -146,12 +132,9 @@ def main():
     n_selftests = isa_py.count('", ["') if "SELFTESTS" in isa_py else 0
 
     enrich_status = (
-        "This install has `enrich.db` attached, so `show` also prints pseudocode "
-        "from the ISA manual. That content is local-only and must not be shared."
-        if use_enrich else
-        "Pseudocode and prose live in AMD's ISA reference PDFs, which are not "
-        "redistributable; rebuild with `--with-enrich` to add them locally."
-    )
+        "Pseudocode and prose live in AMD's ISA reference PDFs, which grant "
+        "review rights only and are not redistributable, so they are not built "
+        "into this corpus. Read them directly when you need them.")
 
     tmpl = string.Template(
         open(os.path.join(TEMPLATE_DIR, "SKILL.md.tmpl"), encoding="utf-8").read())
@@ -179,7 +162,7 @@ def main():
 
     open(os.path.join(args.out, "SKILL.md"), "w", encoding="utf-8").write(skill_md)
     open(os.path.join(args.out, "NOTICE.md"), "w", encoding="utf-8").write(
-        NOTICE + (ENRICH_NOTICE if use_enrich else ""))
+        NOTICE)
 
     manifest_path = os.path.join(ROOT, "sources", "manifest.json")
     sources = []
@@ -187,7 +170,7 @@ def main():
         sources = [{"file": e["file"], "url": e["url"], "sha256": e["sha256"]}
                    for e in json.load(open(manifest_path))["sources"]
                    if e["category"] == "machine-readable-isa"
-                   or (use_enrich and e["category"] == "isa-pdf")]
+]
     json.dump({
         "built": time.strftime("%Y-%m-%d %H:%M:%S"),
         "archs": archs,
@@ -201,8 +184,7 @@ def main():
                 for dp, _, fs in os.walk(args.out) for f in fs)
     print("  rendered %s  (%.1f MB, %s)"
           % (os.path.relpath(args.out, ROOT), total / 1e6,
-             "LOCAL ONLY - includes PDF-derived data" if use_enrich
-             else "redistributable, XML-derived only"))
+             "redistributable, XML-derived only"))
     return 0
 
 

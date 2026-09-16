@@ -5,7 +5,6 @@ Stages, each independently runnable so a slow one is never re-run for free:
 
     fetch     download public AMD sources    -> sources/   (network)
     xml       machine-readable ISA -> SQLite -> build/isa.db
-    pdf       ISA manuals -> pseudocode/notes-> build/enrich.db   (local only)
     render    templates + db -> the skill    -> dist/amd-gpu-isa
     install   dist -> agent skills directories
     verify    counts, licence boundary, selftest
@@ -41,26 +40,20 @@ def run(script, argv, label):
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("stage", choices=["fetch", "xml", "pdf", "render", "install",
+    ap.add_argument("stage", choices=["fetch", "xml", "render", "install",
                                       "verify", "all"])
-    ap.add_argument("--with-enrich", action="store_true",
-                    help="render/install the PDF-enriched build (local only)")
     ap.add_argument("--link", action="store_true", help="install: symlink, don't copy")
     ap.add_argument("--agents", default="claude,codex,pi")
     ap.add_argument("--force", action="store_true", help="fetch: re-download everything")
     args, extra = ap.parse_known_args()
-
-    enrich = ["--with-enrich"] if args.with_enrich else []
 
     if args.stage in ("fetch", "all"):
         run("fetch.py", (["--force"] if args.force else []) + extra,
             "fetch public AMD sources")
     if args.stage in ("xml", "all"):
         run("xml_to_db.py", extra, "machine-readable ISA -> isa.db")
-    if args.stage == "pdf":
-        run("pdf_to_db.py", extra, "ISA manuals -> enrich.db")
     if args.stage in ("render", "all"):
-        run("render.py", enrich + extra, "render the skill")
+        run("render.py", extra, "render the skill")
     if args.stage == "install":
         run("install.py", (["--link"] if args.link else [])
             + ["--agents", args.agents] + extra, "install into agent skill dirs")

@@ -28,20 +28,19 @@ Then tell the user to start a new agent session to pick it up.
 
 ## Stages
 
-Run individually when only part needs redoing — `fetch` hits the network and
-`pdf` is slow, so never re-run them for a text change.
+Run individually when only part needs redoing — `fetch` hits the network, so
+never re-run it for a text change.
 
 | stage | does | output |
 |---|---|---|
 | `fetch` | download public AMD sources | `sources/` + `manifest.json` |
 | `xml` | machine-readable ISA → SQLite | `build/isa.db` |
-| `pdf` | ISA manuals → pseudocode/notes | `build/enrich.db` (local only) |
 | `render` | templates + db → the skill | `dist/amd-gpu-isa` |
 | `install` | dist → agent skill directories | `~/.claude/skills`, … |
 | `verify` | counts, licence boundary, selftest | — |
 
 Useful flags: `--force` (re-download), `--link` (symlink instead of copy, for
-iterating), `--agents claude,codex,pi`, `--with-enrich` (see below).
+iterating), `--agents claude,codex,pi`.
 
 ## The licence boundary — do not blur it
 
@@ -53,9 +52,11 @@ Two regimes, and they must not mix:
   Specification Agreement: *"You may not (i) duplicate any part of the
   Specification … or (iii) give any part of the Specification … to anyone else."*
 
-So: `isa.db` is XML-derived and shareable. `enrich.db` is PDF-derived and must
-stay on this machine. `render --with-enrich` produces a **local-only** build and
-says so in `NOTICE.md` and `build-info.json`.
+So the builder uses **only** the XML. The PDFs are fetched for human reading and
+are never parsed into the corpus — which is why the skill has no pseudocode. If
+you are ever asked to add pseudocode, notes or figures from the manuals, that
+output must stay on this machine: build it into a separate `enrich.db` (isa.py
+already attaches one when present) and never into `isa.db`.
 
 **Never** commit anything from `sources/`, `build/` or `dist/`, and never publish
 a build whose `build-info.json` says `"redistributable": false`. `build.py verify`
@@ -71,8 +72,8 @@ own index, and records which route each file came from.
 
 If a document stops resolving, the fetch is recorded as FAILED in
 `sources/manifest.json` rather than silently saving an HTML error page. Build
-anyway — the skill degrades to whatever sources are present and says which
-architectures lack enrichment. Report the failure to the user; a new document id
+anyway — the corpus comes from the XML, so a missing PDF does not block it.
+Report the failure to the user; a new document id
 may need looking up in `https://docs.amd.com/api/khub/documents`.
 
 ## Checking the result
