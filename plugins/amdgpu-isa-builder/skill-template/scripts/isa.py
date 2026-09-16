@@ -290,9 +290,8 @@ def manual_page_for(inst, arch):
 
 def cmd_manual(conn, args):
     if not os.path.isdir(MANUAL):
-        die("the ISA manuals are not installed here",
-            "build them locally: .venv/bin/python builder/pdf_to_manual.py"
-            " && build.py install --manual")
+        die("the ISA manuals are not installed here -- this skill is incomplete",
+            "rebuild it locally: build.py all && build.py install")
 
     if args.toc:
         rows = manual_rows("toc.tsv", {"arch": args.arch})

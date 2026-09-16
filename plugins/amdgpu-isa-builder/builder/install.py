@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """Install the rendered skill into each agent's skills directory.
 
-Copies by default. --link symlinks instead, which is what you want while
+Copies dist/ by default. --link symlinks instead, which is what you want while
 iterating on the builder: re-render and every agent sees it immediately.
+
+build/manual/ is always linked in, never copied, whichever mode is used: the
+pages are PDF-derived and must exist in one place only, so that a stray copy of
+an installed skill cannot carry them off the machine.
 
 Usage:  python3 builder/install.py [--agents claude,codex,pi] [--link] [--dry-run]
 """
@@ -54,8 +58,6 @@ def main():
     ap.add_argument("--link", action="store_true",
                     help="symlink instead of copying (live edits, saves ~20 MB each)")
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--manual", action="store_true",
-                    help="also install build/manual/ (PDF-derived, LOCAL ONLY)")
     args = ap.parse_args()
 
     if not os.path.isdir(args.src):
@@ -68,18 +70,21 @@ def main():
         sys.exit("unknown agent(s): %s (known: %s)"
                  % (", ".join(unknown), ", ".join(TARGETS)))
 
+    # The manual pages are part of the skill, not an extra: without them there is
+    # no pseudocode and no prose, and the skill cannot be treated as
+    # authoritative. Refuse to install a half-built one.
     manual_src = os.path.join(ROOT, "build", "manual")
-    if args.manual and not os.path.isdir(manual_src):
-        sys.exit("--manual given but build/manual does not exist; run "
-                 ".venv/bin/python builder/pdf_to_manual.py first")
+    if not os.path.isdir(manual_src):
+        sys.exit("build/manual does not exist -- run 'build.py manual' first.\n"
+                 "The ISA manuals are not optional; an XML-only skill has no "
+                 "pseudocode or prose.")
 
     for agent in wanted:
         install_one(agent, TARGETS[agent], os.path.realpath(args.src), name,
                     args.link, args.dry_run)
-        if args.manual and not args.dry_run:
-            # Linked into the installed skill rather than copied into dist/, so
-            # dist/ stays the shareable artifact and the PDF-derived pages exist
-            # only where they were built.
+        if not args.dry_run:
+            # Linked rather than copied, so the PDF-derived pages exist in
+            # exactly one place on disk -- the place they were built.
             dest = os.path.join(TARGETS[agent], name, "manual")
             if os.path.islink(dest) or os.path.exists(dest):
                 if os.path.islink(dest):

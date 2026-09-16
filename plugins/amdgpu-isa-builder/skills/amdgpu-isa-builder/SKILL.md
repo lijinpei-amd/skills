@@ -14,17 +14,28 @@ Builds the `amd-gpu-isa` skill on this machine. The corpus is never distributed 
 it is generated locally from AMD's published sources, for licence reasons set out
 below.
 
-`$B` = the builder checkout (ask the user if it is not obvious; typically
-`~/development/amdgpu-isa-builder`).
+`$B` = the directory two levels above this SKILL.md — the one containing
+`build.py`. Resolve it from this file's own location; under a plugin install the
+absolute path differs per agent.
+
+This plugin is meant to sit **disabled** most of the time, so it costs nothing in
+sessions that are not rebuilding. Enable it, rebuild, disable it again:
+`claude plugin enable amdgpu-isa-builder` / `... disable`.
 
 ## Normal rebuild
 
 ```bash
-python3 $B/build.py all          # fetch, build, render, verify  (~1 min)
+python3 $B/build.py all          # fetch, xml, gfx, manual, render, verify  (~2 min)
 python3 $B/build.py install      # into Claude Code, Codex and pi
 ```
 
 Then tell the user to start a new agent session to pick it up.
+
+`all` includes the ISA manuals, and `install` links them in. That is not
+optional: without them the skill has no pseudocode and no prose, only structure.
+If pymupdf is missing, `all` stops and tells you how to install it — do that
+rather than routing around it with individual stages, which would produce a
+quietly incomplete skill.
 
 ## Stages
 
@@ -38,23 +49,20 @@ never re-run it for a text change.
 | `gfx` | LLVM `AMDGPUUsage.rst` → gfx target map | `build/isa.db` (`gfx_target`) |
 | `manual` | ISA PDFs → markdown pages + TSV indexes | `build/manual/` **(local only)** |
 | `render` | templates + db → the skill | `dist/amd-gpu-isa` |
-| `install` | dist → agent skill directories | `~/.claude/skills`, … |
-| `export` | shareable tarball, PDF-derived content excluded | `dist/*.tar.gz` |
+| `install` | dist → agent skill dirs, manual linked in | `~/.claude/skills`, … |
 | `verify` | counts, licence boundary, selftest | — |
 
 Useful flags: `--force` (re-download), `--link` (symlink instead of copy, for
-iterating), `--agents claude,codex,pi`, `--manual` (also link the local-only
-manual pages into the installed skill).
+iterating), `--agents claude,codex,pi`.
 
 The `manual` stage needs pymupdf, the only non-stdlib dependency:
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install pymupdf
 python3 $B/build.py manual                       # ~55s, 6,058 pages
-python3 $B/build.py install --link --manual
 ```
 
-`render` recreates `dist/` from scratch, so re-run `install --manual` after it.
+`render` recreates `dist/` from scratch, so re-run `install` after it.
 
 ## The licence boundary — do not blur it
 
@@ -66,21 +74,29 @@ Two regimes, and they must not mix:
   Specification Agreement: *"You may not (i) duplicate any part of the
   Specification … or (iii) give any part of the Specification … to anyone else."*
 
-So `isa.db` is built from the XML alone, and is shareable. The `manual` stage
-converts the PDFs for local reading — which is exactly what
-the licence permits — into `build/manual/`. That output is gitignored, linked
-rather than copied into the installed skill, and excluded by `build.py export`.
+`isa.db` is built from the XML alone, so the database itself stays MIT. The
+`manual` stage converts the PDFs for local reading — exactly what the licence
+permits — into `build/manual/`, which is gitignored and linked rather than
+copied, so those pages exist in one place on disk.
 
-**Never publish `build/manual/`, and never copy `dist/` by hand to share it.**
-Use `build.py export`, which writes a tarball and then inspects it to prove no
-PDF-derived file got in. If you are asked to add manual content to `isa.db`,
-don't: keeping the two apart by file is what makes the shipping decision a
-one-line check instead of a column-by-column audit.
+**Every install is therefore local-only, by design.** The skill includes the
+manuals because an ISA reference without pseudocode is not authoritative, and
+the price of that choice is that the *installed skill* may not be shared:
+`build-info.json` records `"redistributable": false` and
+`"includes_pdf_derived": true` to say so. Read those flags before copying an
+installed skill anywhere.
 
-**Never** commit anything from `sources/`, `build/` or `dist/`, and never publish
-a build whose `build-info.json` says `"redistributable": false`. `build.py verify`
-enforces both; if it fails on the licence check, stop and tell the user rather
-than working around it.
+**This builder has no command that shares anything.** Everything it produces is
+local. If you are asked to publish, upload or send the corpus, treat that as a
+licence question and stop — and note that `dist/` contains a live symlink to the
+manual pages, so copying it with a symlink-following tool takes them along. If
+you are asked to fold manual content into `isa.db`, don't: keeping the two apart
+by file is what keeps the boundary a one-line check rather than a
+column-by-column audit.
+
+**Never** commit anything from `sources/`, `build/` or `dist/`. `build.py verify`
+enforces that, along with the consistency of the two flags above; if it fails on
+a licence check, stop and tell the user rather than working around it.
 
 ## When sources are missing
 
@@ -90,24 +106,28 @@ falls back to the portal's file endpoint using document ids resolved from its
 own index, and records which route each file came from.
 
 If a document stops resolving, the fetch is recorded as FAILED in
-`sources/manifest.json` rather than silently saving an HTML error page. Build
-anyway — the corpus comes from the XML, so a missing PDF does not block it.
-Report the failure to the user; a new document id
+`sources/manifest.json` rather than silently saving an HTML error page. The
+build still completes — the database comes from the XML — but a missing ISA PDF
+means that architecture has no manual pages, so the skill is incomplete for it
+rather than merely smaller. Report the failure to the user; a new document id
 may need looking up in `https://docs.amd.com/api/khub/documents`.
 
 ## Checking the result
 
 ```bash
-python3 $B/dist/amd-gpu-isa/scripts/isa.py selftest   # all must pass; the two
-                                                     # manual cases report as
-                                                     # skipped without --manual
 python3 $B/build.py verify
+python3 ~/.claude/skills/amd-gpu-isa/scripts/isa.py selftest   # after install
 ```
+
+Run `selftest` from an **installed** skill, not from `dist/`: the manual pages
+are linked in at install time, so against `dist/` the two manual cases report as
+skipped (`12/12 passed, 2 skipped`) and the manuals go untested. From an
+installed copy all 14 must pass.
 
 `verify` re-derives instruction counts from the raw XML through a different code
 path than the builder uses, so a parser bug cannot hide by agreeing with itself.
 Expect 11,953 instructions / 40,059 encodings / 137,824 operands across 10
-architectures, and 28 gfx targets mapped.
+architectures, and 52 gfx targets mapped.
 
 ## The gfx map needs care
 

@@ -127,14 +127,23 @@ def main():
     isa_py = open(os.path.join(TEMPLATE_DIR, "scripts", "isa.py"), encoding="utf-8").read()
     n_selftests = isa_py.count('", ["') if "SELFTESTS" in isa_py else 0
 
-    # Whether the manual pages exist is a property of the *install*, not of
-    # dist/, so describe both states rather than guessing at build time.
+    # The manual pages are part of every install, so state it plainly rather
+    # than hedging -- an agent that thinks the manuals might be missing will not
+    # reach for them.
+    has_manual = os.path.isdir(os.path.join(BUILD, "manual"))
     pdf_status = (
-        "If `manual/` is present beside this file, `isa.py manual` searches the "
-        "ISA reference manuals page by page and `show` links the definition "
-        "page. Those pages are built locally from AMD's PDFs, which grant review "
-        "rights only -- they are never part of a shared copy of this skill. If "
-        "`manual/` is absent, build it with the amdgpu-isa-builder skill.")
+        "`manual/` holds the ISA reference manuals as one markdown file per "
+        "page: `isa.py manual` searches them and `show` links an instruction's "
+        "definition page. Treat them as the authority when the database and the "
+        "manual disagree -- the database carries structure, the manual carries "
+        "the pseudocode and the prose. These pages are built locally from AMD's "
+        "PDFs, which grant review rights only, so they stay on this machine and "
+        "are never copied into a shared artifact.")
+    if not has_manual:
+        pdf_status = (
+            "`manual/` is MISSING from this build, so no pseudocode or prose is "
+            "available and answers are structural only. Rebuild with the "
+            "amdgpu-isa-builder skill before relying on this skill.")
 
     tmpl = string.Template(
         open(os.path.join(TEMPLATE_DIR, "SKILL.md.tmpl"), encoding="utf-8").read())
@@ -175,10 +184,13 @@ def main():
         "built": time.strftime("%Y-%m-%d %H:%M:%S"),
         "archs": archs,
         "counts": {k[6:]: int(v) for k, v in info.items() if k.startswith("count_")},
-        # XML-derived only, always: AMD's ISA reference PDFs are not
-        # redistributable, so nothing derived from them is ever built.
-        "includes_pdf_derived": False,
-        "redistributable": True,
+        # isa.db is XML-derived whatever else happens, and that XML is MIT.
+        "db_redistributable": True,
+        # The install links the PDF-derived manual pages in, so the skill as a
+        # whole is review-rights-only. Recorded rather than assumed: this is the
+        # flag to read before copying an installed skill anywhere.
+        "includes_pdf_derived": has_manual,
+        "redistributable": not has_manual,
         "sources": sources,
     }, open(os.path.join(args.out, "build-info.json"), "w"), indent=2)
 
@@ -186,7 +198,8 @@ def main():
                 for dp, _, fs in os.walk(args.out) for f in fs)
     print("  rendered %s  (%.1f MB, %s)"
           % (os.path.relpath(args.out, ROOT), total / 1e6,
-             "redistributable, XML-derived only"))
+             "manual pages linked at install: LOCAL ONLY" if has_manual
+             else "XML-derived only -- no manual pages"))
     return 0
 
 

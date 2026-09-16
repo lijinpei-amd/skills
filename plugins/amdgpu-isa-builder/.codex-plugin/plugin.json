@@ -1,0 +1,31 @@
+{
+  "name": "amdgpu-isa-builder",
+  "version": "1.0.0",
+  "description": "Build or refresh the local amd-gpu-isa skill from public AMD sources: machine-readable ISA XML into a queryable SQLite corpus, LLVM's gfx target map, and the ISA reference manuals as per-page markdown for local reading.",
+  "author": {
+    "name": "Li Jinpei",
+    "email": "jinpli@amd.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "amdgpu",
+    "cdna",
+    "rdna",
+    "isa",
+    "corpus-builder",
+    "skill-builder",
+    "llvm"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AMD GPU ISA builder",
+    "shortDescription": "Rebuild the local AMD GPU ISA corpus",
+    "developerName": "Li Jinpei",
+    "category": "Development",
+    "defaultPrompt": [
+      "Rebuild the AMD GPU ISA corpus from the latest public sources.",
+      "Refresh the ISA skill \u2014 AMD published a new specification.",
+      "Install the amd-gpu-isa skill on this machine, manuals included."
+    ]
+  }
+}

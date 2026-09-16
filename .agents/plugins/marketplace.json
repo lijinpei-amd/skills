@@ -14,6 +14,17 @@
         "installation": "AVAILABLE"
       },
       "category": "Development"
+    },
+    {
+      "name": "amdgpu-isa-builder",
+      "source": {
+        "source": "local",
+        "path": "./plugins/amdgpu-isa-builder"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Development"
     }
   ]
 }

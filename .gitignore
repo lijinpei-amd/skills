@@ -1,3 +1,9 @@
 .venv/
 __pycache__/
 *.pyc
+
+# amdgpu-isa-builder: every AMD-derived byte lives here, never tracked
+plugins/amdgpu-isa-builder/sources/
+plugins/amdgpu-isa-builder/build/
+plugins/amdgpu-isa-builder/dist/
+plugins/amdgpu-isa-builder/.venv/

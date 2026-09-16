@@ -3,8 +3,8 @@
 
 LOCAL ONLY. AMD's ISA reference PDFs grant review rights and forbid passing any
 part to anyone else, so everything this writes stays on this machine. It lands in
-build/manual/, which is gitignored, and `build.py export` excludes it from any
-shareable artifact.
+build/manual/, which is gitignored; the installed skill reaches it by symlink
+rather than by copy, so there is one copy and it never travels.
 
 A page is the unit on purpose: ~364 tokens median, so an agent that reads one by
 mistake pays almost nothing, and every page carries its own provenance in front

@@ -4,7 +4,8 @@
 Three kinds of check:
   * counts   -- re-derive instruction/encoding/operand totals straight from the
                 XML with an independent code path, and compare against the DB
-  * licence  -- assert no AMD-derived file is tracked by git, and that every
+  * licence  -- assert no AMD-derived file is tracked by git, that PDF-derived
+                pages reach dist/ only as a symlink into build/, and that every
                 architecture shipped is MIT / "AMD Public Use"
   * answers  -- run the query CLI's own selftest against the rendered skill
 
@@ -102,38 +103,51 @@ def verify_licence_boundary():
 
 
 def verify_dist_purity(dist):
+    """The build-info flags must match what was actually built.
+
+    Since the manual pages are always built, the expected state is
+    includes_pdf_derived=true / redistributable=false. What matters is that the
+    two agree with each other and with the presence of build/manual -- a build
+    claiming to be redistributable while carrying PDF-derived pages is the one
+    dangerous combination.
+    """
     info_path = os.path.join(dist, "build-info.json")
     if not os.path.exists(info_path):
         return check("dist declares its redistribution status", False)
     info = json.load(open(info_path))
-    check("dist declares itself redistributable, XML-derived only",
-          info.get("redistributable") is True
-          and info.get("includes_pdf_derived") is False)
-    if info.get("redistributable"):
-        conn = sqlite3.connect(os.path.join(dist, "data", "isa.db"))
-        lic = conn.execute("SELECT DISTINCT license, sensitivity FROM arch").fetchall()
-        conn.close()
-        ok = all(l == "MIT" and s.startswith("AMD Public Use") for l, s in lic)
-        check("redistributable build: every arch is MIT/Public Use", ok, str(lic[:1]))
+    has_manual = os.path.isdir(os.path.join(ROOT, "build", "manual"))
+    pdf = info.get("includes_pdf_derived")
+    redist = info.get("redistributable")
+    check("build-info matches what was built",
+          pdf is has_manual and redist is (not has_manual),
+          "includes_pdf_derived=%s redistributable=%s, build/manual %s"
+          % (pdf, redist, "present" if has_manual else "absent"))
+    check("the ISA manuals are present (skill is authoritative)", has_manual,
+          "" if has_manual else "run 'build.py manual' -- no pseudocode or prose")
+    conn = sqlite3.connect(os.path.join(dist, "data", "isa.db"))
+    lic = conn.execute("SELECT DISTINCT license, sensitivity FROM arch").fetchall()
+    conn.close()
+    ok = all(l == "MIT" and s.startswith("AMD Public Use") for l, s in lic)
+    check("isa.db: every arch is MIT/Public Use", ok, str(lic[:1]))
     return True
 
 
-def verify_export(dist):
-    """The export is the licence boundary, so test it rather than trust it."""
-    import tarfile, tempfile, subprocess as sp
-    with tempfile.TemporaryDirectory() as tmp:
-        out = os.path.join(tmp, "export.tar.gz")
-        r = sp.run([sys.executable, os.path.join(ROOT, "builder", "export.py"),
-                    "--src", dist, "--out", out], capture_output=True, text=True)
-        if r.returncode != 0:
-            return check("export excludes PDF-derived content", False,
-                         (r.stderr.strip().splitlines() or [""])[-1][:60])
-        with tarfile.open(out) as tar:
-            names = tar.getnames()
-    bad = [n for n in names if "/manual/" in n or n.endswith((".pdf", ".xml"))]
-    return check("export excludes PDF-derived content", not bad,
-                 "%d files, none PDF-derived" % len(names) if not bad
-                 else ", ".join(bad[:3]))
+def verify_dist_quarantine(dist):
+    """PDF-derived content may exist in dist/ only as the `manual` symlink.
+
+    os.walk does not follow symlinked directories, so this sees dist's own files
+    -- a .pdf or a copied manual page would be a real leak out of build/.
+    """
+    bad = []
+    for dirpath, dirnames, filenames in os.walk(dist):
+        if os.path.relpath(dirpath, dist) == "." and "manual" in dirnames:
+            if not os.path.islink(os.path.join(dirpath, "manual")):
+                bad.append("manual/ is a copy, not a symlink into build/")
+            dirnames.remove("manual")
+        bad += [os.path.relpath(os.path.join(dirpath, f), dist)
+                for f in filenames if f.lower().endswith((".pdf", ".xml", ".zip"))]
+    return check("PDF-derived content quarantined in build/", not bad,
+                 ", ".join(bad[:3]))
 
 
 def verify_answers(dist):
@@ -177,7 +191,7 @@ def main():
     if os.path.isdir(args.dist):
         verify_dist_purity(args.dist)
         verify_skill_text(args.dist)
-        verify_export(args.dist)
+        verify_dist_quarantine(args.dist)
         verify_answers(args.dist)
 
     if failures:

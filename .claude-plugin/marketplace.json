@@ -12,6 +12,12 @@
       "description": "Workflow and conventions for fixing upstream llvm/llvm-project (LLVM/MLIR/Clang) issues and getting PRs merged.",
       "category": "development",
       "source": "./plugins/working-on-llvm"
+    },
+    {
+      "name": "amdgpu-isa-builder",
+      "description": "Build or refresh the local amd-gpu-isa skill from public AMD sources. Ships the builder, not the corpus.",
+      "category": "development",
+      "source": "./plugins/amdgpu-isa-builder"
     }
   ]
 }
