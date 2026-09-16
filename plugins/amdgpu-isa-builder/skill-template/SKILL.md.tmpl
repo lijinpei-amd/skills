@@ -1,0 +1,113 @@
+---
+name: amd-gpu-isa
+description: >-
+  AMD GPU ISA reference for $n_archs architectures ($arch_list; gfx900-gfx1250,
+  MI100-MI450, Radeon RX 5000-9000). Instruction encodings, opcodes, operand
+  types and sizes, microcode bit layouts, MFMA/WMMA matrix ops, functional
+  groups, aliases, and cross-generation diffs, queried from the command line.
+  Use when working on the LLVM AMDGPU backend, reading or writing GCN/RDNA
+  assembly, decoding an encoding by hand, or answering questions like "does
+  gfx950 have V_MFMA_F32_16X16X32_F16", "what is the opcode of S_WAIT_LOADCNT
+  on RDNA4", or "what changed between CDNA4 and CDNA5".
+metadata:
+  type: reference
+---
+
+# AMD GPU ISA
+
+$n_instructions instructions, $n_encodings encodings, $n_operands operands across
+$n_archs architectures, in a $db_size SQLite database. Built $built from
+$source_desc.
+
+**Query with `scripts/isa.py`. Never `Read` the database.** `$S` below = the
+directory containing this SKILL.md — resolve it from this file's location, the
+install path differs per agent.
+
+```bash
+python3 $S/scripts/isa.py --help
+```
+
+There is no `sqlite3` CLI dependency — `isa.py` uses Python's stdlib, so it runs
+anywhere python3 does.
+
+## Decision table
+
+| question | command |
+|---|---|
+| everything about one instruction | `isa.py show V_FMA_F32 --arch rdna4` |
+| which archs have it, opcode per arch | `isa.py which V_DOT2_F32_BF16` |
+| find instructions by pattern | `isa.py search '^v_mfma.*f16$' [--arch A] [--group G]` |
+| search descriptions, not names | `isa.py search --fts 'dot AND bf16'` |
+| everything in a group / encoding | `isa.py list --arch cdna5 --group VALU` |
+| microcode bit layout of an encoding | `isa.py encodings --arch rdna4 --encoding ENC_VOP3` |
+| all encodings in an arch | `isa.py encodings --arch rdna4` |
+| what changed between two archs | `isa.py diff cdna4 cdna5 [--group SMEM]` |
+| which arch is this gfx target? | `isa.py gfx gfx950` (`gfx` prefix optional) |
+| gfx targets of an arch | `isa.py gfx --arch cdna5` |
+| arch / group overview | `isa.py archs`, `isa.py groups --arch cdna5` |
+| what does it actually compute? | `isa.py manual --inst V_FMA_F32 --arch rdna4` |
+| search the manual prose | `isa.py manual --grep 'wait state' [--arch A]` |
+| manual table of contents | `isa.py manual --toc --arch cdna5 [--level 2]` |
+| anything else | `isa.py sql "<SELECT ...>"` |
+| verify the corpus answers correctly | `isa.py selftest` ($n_selftests examples) |
+
+Every subcommand takes `--json` and `-n N` (`-n 0` = unlimited). **The true row
+count is always reported**, so a truncated listing never reads as a complete
+answer. Exit 1 means no match, and always suggests a next command.
+
+Aliases resolve automatically: `isa.py show S_LOAD_DWORD` finds `S_LOAD_B32` and
+says so. Names drift between generations and between LLVM and the manuals — trust
+`which`, not memory.
+
+## Writing SQL
+
+When the subcommands do not fit, query directly. `isa.py schema` prints the full
+schema; these flattened views answer most questions with no join:
+
+```
+v_inst      arch, name, "group", encoding, opcode, condition, description
+v_presence  arch, name, "group", n_encodings, opcode      -- one row per (name, arch)
+v_name      arch, query_name, canonical_name, is_alias    -- alias resolution
+v_operand   arch, name, encoding, condition, ord, field_name, operand_type,
+            data_format, size, is_input, is_output, is_implicit
+v_gfx       gfx, arch, architecture_name, llvm_generation, kind, products, basis
+```
+
+```bash
+isa.py sql "SELECT arch, COUNT(*) FROM v_presence WHERE \"group\"='VALU' GROUP BY arch"
+isa.py sql "SELECT name FROM v_presence WHERE arch='cdna5'
+            EXCEPT SELECT name FROM v_presence WHERE arch='cdna4'"
+```
+
+Only `SELECT`/`WITH` are accepted and the connection is read-only, so a query
+cannot damage the corpus. Base tables — `instruction`, `inst_encoding`,
+`operand`, `encoding`, `encoding_field`, `data_format`, `operand_type`,
+`functional_group`, `arch` — are there when a view is not enough.
+
+## Known limits
+
+- **Structure vs semantics.** `isa.db` is built from AMD's machine-readable XML:
+  names, encodings, opcodes, operands, one-line descriptions. Pseudocode, hazards
+  and prose live in the ISA manuals. $pdf_status
+- **gfx mapping is LLVM's, not AMD's.** The XML names no gfx targets; the map
+  comes from LLVM's `AMDGPUUsage.rst`. Beware that LLVM's headings are *encoding*
+  generations, not product architectures — it files `gfx1250` under "GCN GFX12
+  (RDNA 4)" although that is CDNA 5 hardware, and lumps all of Vega and CDNA 1-4
+  under "GCN GFX9". `isa.py gfx` reports both, and prints the basis for each
+  mapping. Vega and older targets resolve to no arch: AMD published no
+  machine-readable spec for them.
+- **Not cross-checked against LLVM.** Where this corpus and
+  `llvm/lib/Target/AMDGPU/*.td` disagree, LLVM is what the compiler actually
+  does; this is what AMD published.
+
+## Refreshing
+
+Corpus stale, or AMD published a new architecture? Rebuild it:
+
+```
+$rebuild_hint
+```
+
+## Provenance
+
+$notice_line
