@@ -1,11 +1,11 @@
 ---
-name: writing-python-docstrings
-description: Use when writing, reviewing, or fixing Python docstrings for modules, classes, functions, methods, properties, generators, decorators, overrides, or tests; or when asked about PEP 257 or Google-style docstring conventions (Args/Returns/Yields/Raises/Attributes sections).
+name: writing-python-docstrings-and-comments
+description: Use when writing, reviewing, or fixing Python docstrings, block/inline comments, TODO comments, or exception/log error messages; for modules, classes, functions, methods, properties, generators, decorators, overrides, or tests; or when asked about PEP 257 or Google-style conventions (Args/Returns/Yields/Raises/Attributes sections, TODO format).
 ---
 
-# Writing Python Docstrings
+# Writing Python Docstrings and Comments
 
-Sources: [PEP 257](https://peps.python.org/pep-0257/) (structure) + [Google Python Style Guide §3.8](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings) (sections, formatting). Where they differ, follow the file's existing style; default to Google.
+Sources: [PEP 257](https://peps.python.org/pep-0257/) (structure) + [Google Python Style Guide §3.8](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings) (sections, formatting, comments, TODOs, error messages). Where they differ, follow the file's existing style; default to Google.
 
 ## Core shape
 
@@ -111,6 +111,57 @@ Typical usage example:
 """
 ```
 
+## Block and inline comments (Google §3.8.5–3.8.6)
+
+- Comment what you'd otherwise have to explain in code review: a few lines before a complicated block; end-of-line for a non-obvious line.
+- Explain *why* / intent, never narrate *what* the code does. Assume the reader knows Python better than you, but not your goal.
+- Inline: at least 2 spaces before `#`, one space after.
+- Write like prose: proper capitalization, punctuation, spelling; full sentences where practical. End-of-line comments may be terser, but be consistent.
+
+```python
+# Yes: explains the non-obvious intent.
+if i & (i-1) == 0:  # True if i is 0 or a power of 2.
+
+# No: narrates the code.
+# Now go through the b array and make sure whenever i occurs the next element is i+1
+```
+
+## TODO comments (Google §3.12)
+
+Format: `# TODO: <link, ideally a bug> - <explanation>`
+
+```python
+# TODO: crbug.com/192795 - Investigate cpufreq optimizations.
+```
+
+- Context is a tracked resource (bug/issue), not a person or team. Avoid `TODO(username):` and `TODO: @user -` in new code; `TODO(crbug.com/…):` is the discouraged old style.
+- "Do X later" needs a specific date or a specific event ("Remove when all clients handle XML responses.").
+
+## Error messages (Google §3.10.2)
+
+Applies to exception messages, user-facing messages, and log lines. They must:
+
+1. **Match the actual condition precisely** — don't assume the cause.
+2. **Make interpolated values clearly identifiable** — `{p=}`, `%r`, or a `: value` suffix, not spliced into prose.
+3. **Be greppable** — keep the fixed text contiguous and the variable part at the edge.
+
+```python
+# Yes
+if not 0 <= p <= 1:
+    raise ValueError(f'Not a probability: {p=}')
+try:
+    os.rmdir(workdir)
+except OSError as error:
+    logging.warning('Could not remove directory (reason: %r): %r', error, workdir)
+
+# No
+if p < 0 or p > 1:  # Also false for NaN: condition doesn't match the message.
+    ...
+except OSError:
+    logging.warning('Directory already was deleted: %s', workdir)   # assumes the cause
+    logging.warning('The %s directory could not be deleted.', workdir)  # value hidden in prose; hard to grep
+```
+
 ## Common mistakes
 
 | Mistake | Fix |
@@ -122,3 +173,6 @@ Typical usage example:
 | `Returns:` on a generator | `Yields:` |
 | Mixing descriptive and imperative in one file | Pick one. |
 | Docstring explains the algorithm | Move to inline comments; docstring covers caller-visible behavior. |
+| Comment restates the code | Delete it, or say *why*. |
+| `# TODO(alice): fix` | `# TODO: <bug link> - Fix ...` |
+| `f'Failed for {name}'` where name could read as prose | `f'Failed: {name!r}'` |

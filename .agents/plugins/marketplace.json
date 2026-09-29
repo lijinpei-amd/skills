@@ -27,10 +27,10 @@
       "category": "Development"
     },
     {
-      "name": "writing-python-docstrings",
+      "name": "writing-python-docstrings-and-comments",
       "source": {
         "source": "local",
-        "path": "./plugins/writing-python-docstrings"
+        "path": "./plugins/writing-python-docstrings-and-comments"
       },
       "policy": {
         "installation": "AVAILABLE"

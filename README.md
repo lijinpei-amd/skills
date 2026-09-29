@@ -7,7 +7,7 @@ marketplace/discovery mechanism. Edit here, reinstall there.
 |---|---|
 | [`working-on-llvm`](plugins/working-on-llvm) | upstream llvm-project workflow: build/test, reduce, debug passes, PR hygiene |
 | [`amdgpu-isa-builder`](plugins/amdgpu-isa-builder) | builds the `amd-gpu-isa` reference skill locally from public AMD sources |
-| [`writing-python-docstrings`](plugins/writing-python-docstrings) | PEP 257 + Google-style Python docstring conventions |
+| [`writing-python-docstrings-and-comments`](plugins/writing-python-docstrings-and-comments) | PEP 257 + Google-style Python docstrings, comments, TODOs, error messages |
 
 ## Install
 
@@ -19,7 +19,7 @@ Each skill ships as its own plugin, so you install only what you want.
 /plugin marketplace add ~/development/skills
 /plugin install working-on-llvm@jinpei-skills
 /plugin install amdgpu-isa-builder@jinpei-skills
-/plugin install writing-python-docstrings@jinpei-skills
+/plugin install writing-python-docstrings-and-comments@jinpei-skills
 /plugin disable amdgpu-isa-builder          # see below
 ```
 
@@ -29,7 +29,7 @@ Each skill ships as its own plugin, so you install only what you want.
 codex plugin marketplace add ~/development/skills
 codex plugin add working-on-llvm@jinpei-skills
 codex plugin add amdgpu-isa-builder@jinpei-skills
-codex plugin add writing-python-docstrings@jinpei-skills
+codex plugin add writing-python-docstrings-and-comments@jinpei-skills
 ```
 
 **pi**

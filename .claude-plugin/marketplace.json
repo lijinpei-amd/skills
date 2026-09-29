@@ -20,10 +20,10 @@
       "source": "./plugins/amdgpu-isa-builder"
     },
     {
-      "name": "writing-python-docstrings",
-      "description": "Python docstring conventions from PEP 257 and the Google Python Style Guide.",
+      "name": "writing-python-docstrings-and-comments",
+      "description": "Python docstring and comment conventions from PEP 257 and the Google Python Style Guide.",
       "category": "development",
-      "source": "./plugins/writing-python-docstrings"
+      "source": "./plugins/writing-python-docstrings-and-comments"
     }
   ]
 }

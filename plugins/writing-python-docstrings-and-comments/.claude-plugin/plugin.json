@@ -1,0 +1,22 @@
+{
+  "name": "writing-python-docstrings-and-comments",
+  "version": "1.0.0",
+  "description": "Python docstring and comment conventions from PEP 257 and the Google Python Style Guide: summary lines, Args/Returns/Yields/Raises/Attributes sections, when a docstring is required, block/inline comments, TODO format, and error messages.",
+  "author": {
+    "name": "Li Jinpei",
+    "email": "jinpli@amd.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "python",
+    "docstring",
+    "pep257",
+    "google-style",
+    "pydoc",
+    "documentation",
+    "code-review",
+    "comments",
+    "todo",
+    "error-messages"
+  ]
+}
