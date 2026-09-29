@@ -18,6 +18,12 @@
       "description": "Build or refresh the local amd-gpu-isa skill from public AMD sources. Ships the builder, not the corpus.",
       "category": "development",
       "source": "./plugins/amdgpu-isa-builder"
+    },
+    {
+      "name": "writing-python-docstrings",
+      "description": "Python docstring conventions from PEP 257 and the Google Python Style Guide.",
+      "category": "development",
+      "source": "./plugins/writing-python-docstrings"
     }
   ]
 }

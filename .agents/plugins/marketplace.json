@@ -25,6 +25,17 @@
         "installation": "AVAILABLE"
       },
       "category": "Development"
+    },
+    {
+      "name": "writing-python-docstrings",
+      "source": {
+        "source": "local",
+        "path": "./plugins/writing-python-docstrings"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Development"
     }
   ]
 }
