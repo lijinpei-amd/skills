@@ -14,7 +14,12 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 CLAUDE_MARKET = os.path.join(ROOT, ".claude-plugin", "marketplace.json")
 CODEX_MARKET = os.path.join(ROOT, ".agents", "plugins", "marketplace.json")
+PI_PACKAGE = os.path.join(ROOT, "package.json")
 PLUGINS_DIR = os.path.join(ROOT, "plugins")
+
+# Plugins pi must not load from the package: the builder is meant to stay off,
+# and pi has no disabled state, so it is passed per session with --skill instead.
+PI_EXCLUDED = {"amdgpu-isa-builder"}
 
 # plugin.json fields that must be byte-identical between the two flavors.
 SHARED_FIELDS = ("name", "version", "description", "author", "license", "keywords")
@@ -92,6 +97,15 @@ def main():
         fail("marketplace name differs: %r (claude) vs %r (codex)"
              % (claude.get("name"), codex.get("name")))
 
+    pi = load(PI_PACKAGE)
+    if pi is not None:
+        pi_skills = sorted(pi.get("pi", {}).get("skills", []))
+        expected = sorted(
+            "./plugins/%s/skills" % name for name in on_disk if name not in PI_EXCLUDED
+        )
+        if pi_skills != expected:
+            fail("package.json pi.skills lists %s, expected %s" % (pi_skills, expected))
+
     for name in on_disk:
         pdir = os.path.join(PLUGINS_DIR, name)
         cj = load(os.path.join(pdir, ".claude-plugin", "plugin.json"))
@@ -131,7 +145,7 @@ def report():
             print("error: %s" % p, file=sys.stderr)
         print("\n%d problem(s)" % len(problems), file=sys.stderr)
         return 1
-    print("ok: marketplaces, plugin manifests and skill frontmatter are consistent")
+    print("ok: marketplaces, plugin manifests, pi package and skill frontmatter are consistent")
     return 0
 
 

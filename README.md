@@ -34,11 +34,11 @@ codex plugin add writing-python-docstrings-and-comments@jinpei-skills
 
 **pi**
 
-pi discovers `SKILL.md` recursively, so one settings entry covers every skill in
-the repo — present and future:
+`package.json` makes the repo a pi package that exposes every skill except
+`amdgpu-isa-builder`:
 
-```json
-{ "skills": ["~/development/skills/plugins"] }
+```bash
+pi install ~/development/skills
 ```
 
 ### From the git remote
@@ -48,9 +48,8 @@ On another machine, add the marketplace by repo instead of by path:
 ```
 /plugin marketplace add lijinpei-amd/skills                    # Claude Code
 codex plugin marketplace add lijinpei-amd/skills --ref main    # Codex
+pi install git:github.com/lijinpei-amd/skills                  # pi
 ```
-
-For pi, clone it anywhere and point `skills` at the clone's `plugins/`.
 
 Claude Code reads `.claude-plugin/marketplace.json`, Codex reads
 `.agents/plugins/marketplace.json`; both point at the same `plugins/` tree.

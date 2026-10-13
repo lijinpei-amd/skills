@@ -1,0 +1,12 @@
+{
+  "name": "jinpei-skills",
+  "private": true,
+  "description": "Personal agent skills, loaded by pi as a git package.",
+  "keywords": ["pi-package"],
+  "pi": {
+    "skills": [
+      "./plugins/working-on-llvm/skills",
+      "./plugins/writing-python-docstrings-and-comments/skills"
+    ]
+  }
+}

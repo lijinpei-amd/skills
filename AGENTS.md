@@ -6,7 +6,7 @@ Codex look in different places for them.
 
 ## Adding a skill
 
-Five files, no more:
+Six files, no more:
 
 1. `plugins/<name>/skills/<name>/SKILL.md` — the skill.
 2. `plugins/<name>/.claude-plugin/plugin.json`
@@ -16,6 +16,8 @@ Five files, no more:
 4. An entry in `.claude-plugin/marketplace.json` (`"source": "./plugins/<name>"`).
 5. An entry in `.agents/plugins/marketplace.json`
    (`"source": {"source": "local", "path": "./plugins/<name>"}`).
+6. An entry in `package.json` under `pi.skills` (`"./plugins/<name>/skills"`),
+   unless pi should not load it by default (`PI_EXCLUDED` in the validator).
 
 Then `python3 scripts/validate.py`. It fails the build if the two marketplaces
 disagree, if the shared `plugin.json` fields have drifted apart, or if a
