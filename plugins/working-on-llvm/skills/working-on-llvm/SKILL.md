@@ -4,9 +4,10 @@ description: >-
   Workflow and conventions for fixing upstream llvm/llvm-project (LLVM/MLIR/Clang)
   issues and getting PRs merged. Use when building/testing LLVM, writing or
   minimizing .ll/.mir/MLIR test cases, debugging passes (InstCombine, Attributor,
-  LSR, JumpThreading, SelectionDAG/ISel, SCEV, AMDGPU, MLIR dialects), running
-  alive2/llubi, using llvm-reduce, or preparing commits/PRs and addressing
-  reviewer feedback (lijinpei-amd's setup).
+  LSR, JumpThreading, SelectionDAG/ISel, SCEV, AMDGPU, MLIR dialects), splitting
+  scheduler debug logs or per-pass IR/MIR/MLIR dumps, running alive2/llubi, using
+  llvm-reduce, or preparing commits/PRs and addressing reviewer feedback
+  (lijinpei-amd's setup).
 metadata:
   type: reference
 ---
@@ -111,6 +112,10 @@ git diff --check -- path/to/test.ll
 - **Tracing:** `-debug-only=<pass>` (e.g. `instcombine`, `attributor`, `isel`,
   `loop-reduce`, `indvars`), `-print-after=<pass>` / `-print-after-all`,
   `-print-changed=diff`, `-stats`.
+- **Large logs:** `$S` = the directory containing this SKILL.md. Use
+  `$S/scripts/sched_log_split.py` for regex-delimited scheduler logs and
+  `$S/scripts/split_ir_dump.py` for per-pass IR/MIR/MLIR snapshots. Read
+  [references/log-splitting.md](references/log-splitting.md) for commands and output rules.
 - **Backend / ISel:** `llc -mtriple=amdgcn -mcpu=gfx900 -debug-only=isel -o /dev/null`,
   then slice one phase: `sed -n '/Initial selection DAG/,/Optimized lowered/p'`.
 - **Temporary `errs() << "DBG171724…"`** prints are fine to localize — rebuild,
