@@ -6,7 +6,8 @@
   "pi": {
     "skills": [
       "./plugins/working-on-llvm/skills",
-      "./plugins/writing-python-docstrings-and-comments/skills"
+      "./plugins/writing-python-docstrings-and-comments/skills",
+      "./plugins/locking-gpus/skills"
     ]
   }
 }

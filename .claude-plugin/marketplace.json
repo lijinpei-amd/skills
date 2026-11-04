@@ -24,6 +24,12 @@
       "description": "Python docstring and comment conventions from PEP 257 and the Google Python Style Guide.",
       "category": "development",
       "source": "./plugins/writing-python-docstrings-and-comments"
+    },
+    {
+      "name": "locking-gpus",
+      "description": "Run GPU jobs under a per-GPU flock so concurrent benchmarks on a shared machine never share a GPU.",
+      "category": "development",
+      "source": "./plugins/locking-gpus"
     }
   ]
 }

@@ -1,0 +1,33 @@
+{
+  "name": "locking-gpus",
+  "version": "1.0.0",
+  "description": "Run GPU jobs under a per-GPU flock (~/.gpu_locks/<N>) with HIP_VISIBLE_DEVICES set, so concurrent agents and benchmarks on a shared multi-GPU machine never share a GPU.",
+  "author": {
+    "name": "Li Jinpei",
+    "email": "jinpli@amd.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "gpu",
+    "rocm",
+    "hip",
+    "amdgpu",
+    "benchmark",
+    "flock",
+    "lock",
+    "HIP_VISIBLE_DEVICES",
+    "interference",
+    "shared-machine"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Locking GPUs",
+    "shortDescription": "Per-GPU flock so benchmarks never share a GPU",
+    "developerName": "Li Jinpei",
+    "category": "Development",
+    "defaultPrompt": [
+      "Benchmark this kernel on a free GPU.",
+      "Compare the before and after builds on the same locked GPU."
+    ]
+  }
+}

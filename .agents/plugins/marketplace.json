@@ -36,6 +36,17 @@
         "installation": "AVAILABLE"
       },
       "category": "Development"
+    },
+    {
+      "name": "locking-gpus",
+      "source": {
+        "source": "local",
+        "path": "./plugins/locking-gpus"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Development"
     }
   ]
 }
