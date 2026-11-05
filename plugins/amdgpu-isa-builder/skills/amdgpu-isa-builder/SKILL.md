@@ -103,14 +103,17 @@ a licence check, stop and tell the user rather than working around it.
 AMD moved most GPU documentation behind a JavaScript portal at docs.amd.com; the
 canonical `amd.com` URLs 301 to a viewer page instead of the file. `fetch.py`
 falls back to the portal's file endpoint using document ids resolved from its
-own index, and records which route each file came from.
+own index, then to GPUOpen's copies of the RDNA guides, and records which route
+each file came from.
 
 If a document stops resolving, the fetch is recorded as FAILED in
 `sources/manifest.json` rather than silently saving an HTML error page. The
 build still completes — the database comes from the XML — but a missing ISA PDF
 means that architecture has no manual pages, so the skill is incomplete for it
 rather than merely smaller. Report the failure to the user; a new document id
-may need looking up in `https://docs.amd.com/api/khub/documents`.
+may need looking up in `https://docs.amd.com/api/khub/documents`, or a public
+copy on `https://gpuopen.com/amd-gpu-architecture-programming-documentation/`
+added to `MIRRORS`.
 
 ## Checking the result
 

@@ -217,10 +217,12 @@ Seven stages, each writing into the next; `all` runs every one but `install`:
 machine-readable ISA zip and LLVM's `AMDGPUUsage` (rst + html, at a pinned
 commit). Canonical `amd.com` URLs now 301 to a JavaScript viewer rather than the
 file, so each source falls back to the docs.amd.com portal's file endpoint, with
-document ids resolved from the portal's own index — 8 of the 21 currently arrive
-that way. The manifest records url, actual route, content type, size and sha256
-per file. A source that stops resolving is recorded as FAILED rather than
-silently saved as an HTML error page; the build continues, since the database
+document ids resolved from the portal's own index — 7 of the 21 currently arrive
+that way — and then to GPUOpen's byte-identical copies of the RDNA 2-4 guides.
+RDNA 3.5 has left the portal's public index and now arrives only from GPUOpen.
+The manifest records url, actual route, content type, size and sha256 per file,
+and the XML zip is unpacked into `sources/xml/extracted/` on every run. A source
+that stops resolving is recorded as FAILED rather than silently saved as an HTML error page; the build continues, since the database
 comes from the XML — but a missing ISA PDF leaves that architecture without
 manual pages, so the result is incomplete rather than merely smaller.
 

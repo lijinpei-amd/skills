@@ -8,6 +8,8 @@ come back as a real PDF/zip is recorded as FAILED rather than silently saved --
 amd.com now answers some of these with an HTML viewer page instead of the file.
 
 Re-running is cheap: a file whose sha256 already matches the manifest is skipped.
+The machine-readable ISA zip is unpacked into sources/xml/extracted/ on every run,
+since that, not the zip, is what the xml and verify stages read.
 
 Usage:  python3 scripts/fetch_sources.py [--force]
 """
@@ -16,13 +18,16 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
+import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 SOURCES_DIR = os.path.join(ROOT, "sources")
 MANIFEST = os.path.join(SOURCES_DIR, "manifest.json")
+XML_DIR = os.path.join(SOURCES_DIR, "xml", "extracted")
 
 # AMD moved much of its GPU documentation behind the Fluid Topics portal at
 # docs.amd.com. The canonical amd.com URL still 301s, but to a JavaScript viewer
@@ -33,6 +38,21 @@ MANIFEST = os.path.join(SOURCES_DIR, "manifest.json")
 # Documents under instinct-tech-docs / instinct-business-docs still serve the PDF
 # directly and need no fallback.
 KHUB = "https://docs.amd.com/api/khub/documents/%s/content"
+
+# Last resort, tried after the portal: GPUOpen hosts the RDNA guides itself and
+# links them from the programming-documentation page. Each of these is
+# byte-identical to the portal's copy (sha256 checked 2026-11-05). RDNA 1 is left
+# out because GPUOpen's copy is a different revision.
+MIRRORS = {
+    "rdna4-instruction-set-architecture.pdf":
+        "https://gpuopen.com/download/rdna4-instruction-set-architecture.pdf",
+    "rdna35_instruction_set_architecture.pdf":
+        "https://gpuopen.com/download/rdna35_instruction_set_architecture.pdf",
+    "rdna3-shader-instruction-set-architecture-feb-2023_0.pdf":
+        "https://gpuopen.com/download/rdna3-shader-instruction-set-architecture-feb-2023.pdf",
+    "rdna2-shader-instruction-set-architecture.pdf":
+        "https://gpuopen.com/download/rdna2-shader-instruction-set-architecture.pdf",
+}
 
 # llvm/llvm-project commit the AMDGPUUsage.rst snapshot is taken from. Bump this
 # to re-pin; the backend source itself is not vendored here, only referenced --
@@ -47,9 +67,11 @@ SOURCES = [
     ("isa-pdf", "pdf", "rdna4-instruction-set-architecture.pdf",
      "https://www.amd.com/content/dam/amd/en/documents/radeon-tech-docs/instruction-set-architectures/rdna4-instruction-set-architecture.pdf",
      "uQpkEvk3pv~kfAb2x~j4uw"),
+    # Withdrawn from the portal's public index by 2026-11 (its old id,
+    # UVVZM22UN7tMUeiW_4ShTQ, now answers 401); only the GPUOpen mirror serves it.
     ("isa-pdf", "pdf", "rdna35_instruction_set_architecture.pdf",
      "https://www.amd.com/content/dam/amd/en/documents/radeon-tech-docs/instruction-set-architectures/rdna35_instruction_set_architecture.pdf",
-     "UVVZM22UN7tMUeiW_4ShTQ"),
+     None),
     ("isa-pdf", "pdf", "rdna3-shader-instruction-set-architecture-feb-2023_0.pdf",
      "https://www.amd.com/system/files/TechDocs/rdna3-shader-instruction-set-architecture-feb-2023_0.pdf",
      "UkT_UPQL21KfKAMUBFnZTw"),
@@ -149,6 +171,32 @@ def fetch(url, dest):
     return parts[0], parts[1].split(";")[0].strip(), parts[2]
 
 
+def unpack_xml(zip_path, outdir):
+    """Extract the per-architecture XML files from the machine-readable ISA zip.
+
+    Only .xml members are written, flattened to their basename, so no path in
+    the archive can land outside outdir. XML left from an earlier zip is removed
+    first because xml_to_db loads every .xml it finds there.
+
+    Returns:
+        The number of XML files written.
+    """
+    os.makedirs(outdir, exist_ok=True)
+    for f in os.listdir(outdir):
+        if f.endswith(".xml"):
+            os.remove(os.path.join(outdir, f))
+    n = 0
+    with zipfile.ZipFile(zip_path) as zf:
+        for info in zf.infolist():
+            base = os.path.basename(info.filename)
+            if info.is_dir() or not base.endswith(".xml"):
+                continue
+            with zf.open(info) as src, open(os.path.join(outdir, base), "wb") as dst:
+                shutil.copyfileobj(src, dst)
+            n += 1
+    return n
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--force", action="store_true",
@@ -177,13 +225,20 @@ def main():
         via = "canonical"
 
         ok_types = TEXT_OK if category == "llvm-doc" else OK_TYPES
-        if (code != "200" or ctype not in ok_types) and khub_id:
-            # The canonical URL gave us the portal's viewer page; ask the portal
-            # for the underlying file instead.
-            print("        canonical URL served %s, retrying via docs.amd.com"
-                  % (ctype or code))
-            code, ctype, final = fetch(KHUB % khub_id, dest)
-            via = "docs.amd.com portal"
+        # The canonical URL usually gives us the portal's viewer page; ask the
+        # portal for the underlying file instead, then GPUOpen.
+        alternates = []
+        if khub_id:
+            alternates.append(("docs.amd.com portal", KHUB % khub_id))
+        if name in MIRRORS:
+            alternates.append(("gpuopen.com mirror", MIRRORS[name]))
+        for alt_via, alt_url in alternates:
+            if code == "200" and ctype in ok_types:
+                break
+            print("        %s served %s, retrying via %s"
+                  % (via, ctype or code, alt_via))
+            code, ctype, final = fetch(alt_url, dest)
+            via = alt_via
 
         size = os.path.getsize(dest) if os.path.exists(dest) else 0
 
@@ -213,6 +268,11 @@ def main():
             entry["llvm_commit"] = LLVM_COMMIT
         entries.append(entry)
         print("        ok %.1f MB (%s)" % (size / 1e6, via))
+
+    for e in entries:
+        if e["category"] == "machine-readable-isa":
+            n = unpack_xml(os.path.join(SOURCES_DIR, e["file"]), XML_DIR)
+            print("  unpacked %d XML files -> %s" % (n, os.path.relpath(XML_DIR, ROOT)))
 
     os.makedirs(SOURCES_DIR, exist_ok=True)
     with open(MANIFEST, "w", encoding="utf-8") as fh:
