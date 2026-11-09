@@ -6,7 +6,7 @@ marketplace/discovery mechanism. Edit here, reinstall there.
 | skill | what it is |
 |---|---|
 | [`working-on-llvm`](plugins/working-on-llvm) | upstream llvm-project workflow: build/test, reduce, debug passes, PR hygiene |
-| [`amdgpu-isa-builder`](plugins/amdgpu-isa-builder) | builds the `amd-gpu-isa` reference skill locally from public AMD sources |
+| [`amdgpu-isa-builder`](plugins/amdgpu-isa-builder) | builds the `amdgpu-isa` reference skill locally from public AMD sources |
 | [`writing-python-docstrings-and-comments`](plugins/writing-python-docstrings-and-comments) | PEP 257 + Google-style Python docstrings, comments, TODOs, error messages |
 | [`locking-gpus`](plugins/locking-gpus) | per-GPU `flock` so concurrent jobs and benchmarks never share a GPU |
 

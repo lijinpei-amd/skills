@@ -53,7 +53,7 @@ def install_one(agent, dest_dir, src, name, link, dry_run):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--src", default=os.path.join(ROOT, "dist", "amd-gpu-isa"))
+    ap.add_argument("--src", default=os.path.join(ROOT, "dist", "amdgpu-isa"))
     ap.add_argument("--agents", default="claude,codex,pi",
                     help="comma-separated: claude, codex, pi (default: all)")
     ap.add_argument("--link", action="store_true",

@@ -211,14 +211,14 @@ def verify_skill_text(dist):
     check("no unsubstituted template placeholders", not left,
           left[0][:60] if left else "")
     hard = [l for l in t.splitlines()
-            if re.search(r"~/\.(claude|codex|agents)/skills/amd-gpu-isa", l)]
+            if re.search(r"~/\.(claude|codex|agents)/skills/amdgpu-isa", l)]
     return check("no install path hardcoded in SKILL.md", not hard,
                  hard[0][:60] if hard else "")
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dist", default=os.path.join(ROOT, "dist", "amd-gpu-isa"))
+    ap.add_argument("--dist", default=os.path.join(ROOT, "dist", "amdgpu-isa"))
     ap.add_argument("--quick", action="store_true", help="skip XML re-derivation")
     args = ap.parse_args()
 

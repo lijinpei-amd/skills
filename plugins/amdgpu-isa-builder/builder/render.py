@@ -102,7 +102,7 @@ def compress_archs(names):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=os.path.join(ROOT, "dist", "amd-gpu-isa"))
+    ap.add_argument("--out", default=os.path.join(ROOT, "dist", "amdgpu-isa"))
     args = ap.parse_args()
 
     isa_db = os.path.join(BUILD, "isa.db")

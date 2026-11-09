@@ -15,7 +15,7 @@
     },
     {
       "name": "amdgpu-isa-builder",
-      "description": "Build or refresh the local amd-gpu-isa skill from public AMD sources. Ships the builder, not the corpus.",
+      "description": "Build or refresh the local amdgpu-isa skill from public AMD sources. Ships the builder, not the corpus.",
       "category": "development",
       "source": "./plugins/amdgpu-isa-builder"
     },

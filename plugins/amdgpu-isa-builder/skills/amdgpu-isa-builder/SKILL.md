@@ -1,7 +1,7 @@
 ---
 name: amdgpu-isa-builder
 description: >-
-  Build or refresh the local amd-gpu-isa skill from public AMD sources. Use when
+  Build or refresh the local amdgpu-isa skill from public AMD sources. Use when
   asked to build, rebuild, refresh or install the AMD GPU ISA corpus, or after
   AMD publishes a new ISA specification.
 metadata:
@@ -10,7 +10,7 @@ metadata:
 
 # amdgpu-isa-builder
 
-Builds the `amd-gpu-isa` skill on this machine. The corpus is never distributed —
+Builds the `amdgpu-isa` skill on this machine. The corpus is never distributed —
 it is generated locally from AMD's published sources, for licence reasons set out
 below.
 
@@ -48,7 +48,7 @@ never re-run it for a text change.
 | `xml` | machine-readable ISA → SQLite | `build/isa.db` |
 | `gfx` | LLVM `AMDGPUUsage.rst` → gfx target map | `build/isa.db` (`gfx_target`) |
 | `manual` | ISA PDFs → markdown pages + TSV indexes | `build/manual/` **(local only)** |
-| `render` | templates + db → the skill | `dist/amd-gpu-isa` |
+| `render` | templates + db → the skill | `dist/amdgpu-isa` |
 | `install` | dist → agent skill dirs, manual linked in | `~/.claude/skills`, … |
 | `verify` | counts, licence boundary, selftest | — |
 
@@ -120,7 +120,7 @@ added to `MIRRORS`.
 
 ```bash
 python3 $B/build.py verify
-python3 ~/.claude/skills/amd-gpu-isa/scripts/isa.py selftest   # after install
+python3 ~/.claude/skills/amdgpu-isa/scripts/isa.py selftest   # after install
 ```
 
 Run `selftest` from an **installed** skill, not from `dist/`: the manual pages

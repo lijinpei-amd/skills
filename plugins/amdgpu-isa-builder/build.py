@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""amdgpu-isa-builder -- build the amd-gpu-isa skill from public AMD sources.
+"""amdgpu-isa-builder -- build the amdgpu-isa skill from public AMD sources.
 
 Stages, each independently runnable so a slow one is never re-run for free:
 
@@ -7,7 +7,7 @@ Stages, each independently runnable so a slow one is never re-run for free:
     xml       machine-readable ISA -> SQLite -> build/isa.db
     gfx       LLVM AMDGPUUsage -> gfx map    -> build/isa.db (gfx_target)
     manual    ISA PDFs -> markdown + indexes -> build/manual/  (LOCAL ONLY)
-    render    templates + db -> the skill    -> dist/amd-gpu-isa
+    render    templates + db -> the skill    -> dist/amdgpu-isa
     install   dist -> agent skills directories, manual pages included
     verify    counts, licence boundary, selftest
     all       fetch + xml + gfx + manual + render + verify
@@ -84,7 +84,7 @@ def main():
         run("verify.py", extra, "verify")
 
     if args.stage == "all":
-        print("\nBuilt dist/amd-gpu-isa. Install it with:"
+        print("\nBuilt dist/amdgpu-isa. Install it with:"
               "\n    python3 build.py install [--link]")
     return 0
 

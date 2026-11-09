@@ -1,6 +1,6 @@
 # amdgpu-isa-builder
 
-Builds the `amd-gpu-isa` agent skill — an AMD GPU ISA reference covering CDNA 1-5
+Builds the `amdgpu-isa` agent skill — an AMD GPU ISA reference covering CDNA 1-5
 and RDNA 1-4 — from AMD's public sources.
 
 **This repo ships no AMD content.** It ships the code and the skill text; the
@@ -61,28 +61,28 @@ Installing is where they diverge again, though one command covers all three:
 **Claude Code**
 
 ```bash
-python3 build.py install --agents claude      # -> ~/.claude/skills/amd-gpu-isa
+python3 build.py install --agents claude      # -> ~/.claude/skills/amdgpu-isa
 ```
 
 **Codex**
 
 ```bash
-python3 build.py install --agents codex       # -> ~/.codex/skills/amd-gpu-isa
+python3 build.py install --agents codex       # -> ~/.codex/skills/amdgpu-isa
 ```
 
 **pi**
 
 ```bash
-python3 build.py install --agents pi          # -> ~/.agents/skills/amd-gpu-isa
+python3 build.py install --agents pi          # -> ~/.agents/skills/amdgpu-isa
 ```
 
 Omit `--agents` to do all three at once, which is the usual case. Start a new
 agent session afterwards to pick up the rebuilt skill, then check it answers:
 
 ```bash
-python3 ~/.claude/skills/amd-gpu-isa/scripts/isa.py which V_DOT2_F32_BF16   # Claude Code
-python3 ~/.codex/skills/amd-gpu-isa/scripts/isa.py  which V_DOT2_F32_BF16   # Codex
-python3 ~/.agents/skills/amd-gpu-isa/scripts/isa.py which V_DOT2_F32_BF16   # pi
+python3 ~/.claude/skills/amdgpu-isa/scripts/isa.py which V_DOT2_F32_BF16   # Claude Code
+python3 ~/.codex/skills/amdgpu-isa/scripts/isa.py  which V_DOT2_F32_BF16   # Codex
+python3 ~/.agents/skills/amdgpu-isa/scripts/isa.py which V_DOT2_F32_BF16   # pi
 ```
 
 Flags: `--force` re-downloads, `--link` symlinks instead of copying (for
@@ -114,7 +114,7 @@ codex plugin remove amdgpu-isa-builder
 # (no command)
 ```
 
-Deactivating the builder does not touch the skill it produced: `amd-gpu-isa` is
+Deactivating the builder does not touch the skill it produced: `amdgpu-isa` is
 installed into each agent's own skills directory and stays enabled. Only the
 build machinery goes quiet.
 
@@ -142,10 +142,10 @@ which many machines lack.
 
 ## Structure of generated skill
 
-`render` writes `dist/amd-gpu-isa/`:
+`render` writes `dist/amdgpu-isa/`:
 
 ```
-amd-gpu-isa/
+amdgpu-isa/
 ├── SKILL.md              frontmatter + a decision table: question -> isa.py command
 ├── scripts/
 │   └── isa.py            the whole query interface, stdlib only (28K)
@@ -200,7 +200,7 @@ real description from a bare opcode listing.
 Note the 13 manuals against the database's 10 architectures — the manual corpus
 also covers GCN3, Vega and Vega 7nm, which have no machine-readable XML.
 
-## How it generates the amd-gpu-isa skill
+## How it generates the amdgpu-isa skill
 
 Seven stages, each writing into the next; `all` runs every one but `install`:
 
@@ -210,7 +210,7 @@ Seven stages, each writing into the next; `all` runs every one but `install`:
 | `xml` | machine-readable ISA → SQLite | `build/isa.db` |
 | `gfx` | LLVM `AMDGPUUsage.rst` → gfx target map | `build/isa.db` (`gfx_target`) |
 | `manual` | ISA PDFs → one markdown page each + 3 TSV indexes | `build/manual/` **(local only)** |
-| `render` | templates + db → the skill | `dist/amd-gpu-isa` |
+| `render` | templates + db → the skill | `dist/amdgpu-isa` |
 | `install` | dist → agent skill dirs, manual linked in | `~/.claude/skills`, … |
 | `verify` | counts, licence boundary, selftest | — |
 
