@@ -62,7 +62,8 @@ python3 -m venv .venv && .venv/bin/pip install pymupdf
 python3 $B/build.py manual                       # ~55s, 6,058 pages
 ```
 
-`render` recreates `dist/` from scratch, so re-run `install` after it.
+`render` recreates `dist/` from scratch, `manual` link included, so `--link`
+installs pick it up as is; copied installs need `install` re-run.
 
 ## The licence boundary — do not blur it
 

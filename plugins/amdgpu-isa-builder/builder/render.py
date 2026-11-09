@@ -2,7 +2,9 @@
 """Render the skill into dist/ from the templates plus the built database.
 
 The output is self-contained -- isa.db, isa.py, SKILL.md, NOTICE.md -- with no
-path back to this builder and no install path baked into the text.
+install path baked into the text. Its one path back to this builder is the
+`manual` symlink into build/manual, the only form PDF-derived pages may take
+outside build/.
 
 Usage:  python3 builder/render.py [--out DIR]
 """
@@ -116,6 +118,12 @@ def main():
                  os.path.join(args.out, "scripts", "isa.py"))
     os.chmod(os.path.join(args.out, "scripts", "isa.py"), 0o755)
 
+    # Linked, never copied. A --link install is a symlink to this directory, so
+    # without the link here every re-render strips the manuals from it.
+    manual_src = os.path.join(BUILD, "manual")
+    if os.path.isdir(manual_src):
+        os.symlink(os.path.realpath(manual_src), os.path.join(args.out, "manual"))
+
     ref_src = os.path.join(TEMPLATE_DIR, "reference")
     if os.path.isdir(ref_src) and os.listdir(ref_src):
         shutil.copytree(ref_src, os.path.join(args.out, "reference"))
@@ -186,7 +194,7 @@ def main():
         "counts": {k[6:]: int(v) for k, v in info.items() if k.startswith("count_")},
         # isa.db is XML-derived whatever else happens, and that XML is MIT.
         "db_redistributable": True,
-        # The install links the PDF-derived manual pages in, so the skill as a
+        # dist/manual links the PDF-derived manual pages in, so the skill as a
         # whole is review-rights-only. Recorded rather than assumed: this is the
         # flag to read before copying an installed skill anywhere.
         "includes_pdf_derived": has_manual,
@@ -198,7 +206,7 @@ def main():
                 for dp, _, fs in os.walk(args.out) for f in fs)
     print("  rendered %s  (%.1f MB, %s)"
           % (os.path.relpath(args.out, ROOT), total / 1e6,
-             "manual pages linked at install: LOCAL ONLY" if has_manual
+             "manual pages linked: LOCAL ONLY" if has_manual
              else "XML-derived only -- no manual pages"))
     return 0
 

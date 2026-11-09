@@ -150,6 +150,18 @@ def verify_dist_quarantine(dist):
                  ", ".join(bad[:3]))
 
 
+def verify_dist_manual_link(dist):
+    """dist/manual must link to build/manual, so a --link install (a symlink to
+    dist/) keeps its manual pages across a re-render."""
+    src = os.path.join(ROOT, "build", "manual")
+    if not os.path.isdir(src):
+        return True  # verify_dist_purity already reports the missing manuals
+    link = os.path.join(dist, "manual")
+    ok = os.path.islink(link) and os.path.realpath(link) == os.path.realpath(src)
+    return check("dist/manual links to build/manual", ok,
+                 "" if ok else "run 'build.py render'")
+
+
 def verify_answers(dist):
     isa = os.path.join(dist, "scripts", "isa.py")
     if not os.path.exists(isa):
@@ -221,6 +233,7 @@ def main():
         verify_dist_purity(args.dist)
         verify_skill_text(args.dist)
         verify_dist_quarantine(args.dist)
+        verify_dist_manual_link(args.dist)
         verify_answers(args.dist)
 
     if failures:

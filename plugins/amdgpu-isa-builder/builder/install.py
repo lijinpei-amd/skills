@@ -45,7 +45,8 @@ def install_one(agent, dest_dir, src, name, link, dry_run):
     if link:
         os.symlink(src, dest)
     else:
-        shutil.copytree(src, dest)
+        # symlinks=True: dist/manual is a link into build/, re-pointed below.
+        shutil.copytree(src, dest, symlinks=True)
     print("  %-7s %s -> %s" % (agent, action + "ed", dest))
     return True
 

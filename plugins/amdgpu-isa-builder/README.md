@@ -88,7 +88,8 @@ python3 ~/.agents/skills/amd-gpu-isa/scripts/isa.py which V_DOT2_F32_BF16   # pi
 Flags: `--force` re-downloads, `--link` symlinks instead of copying (for
 iterating), `--agents claude,codex,pi` selects install targets.
 
-`render` rebuilds `dist/` from scratch, so re-run `install` after it.
+`render` rebuilds `dist/` from scratch, `manual` link included, so `--link`
+installs pick it up as is; copied installs need `install` re-run.
 
 Everything except `render` and `install` is independently re-runnable; `fetch` is
 the only stage that touches the network, so never re-run it for a text change.
@@ -154,7 +155,7 @@ amd-gpu-isa/
 ├── build-info.json       timestamp, per-arch counts, source URLs + sha256, and
 │                         the two flags that gate sharing:
 │                         includes_pdf_derived / redistributable
-└── manual -> build/manual    the ISA manuals, linked at install (LOCAL ONLY)
+└── manual -> build/manual    the ISA manuals, linked, never copied (LOCAL ONLY)
 ```
 
 The database holds **11,953 instructions, 40,059 encodings, 137,824 operands**
