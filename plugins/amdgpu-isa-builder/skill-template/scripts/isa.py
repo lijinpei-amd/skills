@@ -234,16 +234,17 @@ def cmd_encodings(conn, args):
 def cmd_diff(conn, args):
     a, b = args.arch_a, args.arch_b
     where = ' AND "group" = ?' if args.group else ""
-    pa = [a] + ([args.group] if args.group else [])
-    pb = [b] + ([args.group] if args.group else [])
-    added = conn.execute(
-        'SELECT name FROM v_presence WHERE arch = ?%s'
-        ' EXCEPT SELECT name FROM v_presence WHERE arch = ?%s ORDER BY name'
-        % (where, where), pa[:1] + pa[1:] + pb[:1] + pb[1:]).fetchall()
-    removed = conn.execute(
-        'SELECT name FROM v_presence WHERE arch = ?%s'
-        ' EXCEPT SELECT name FROM v_presence WHERE arch = ?%s ORDER BY name'
-        % (where, where), pb[:1] + pb[1:] + pa[:1] + pa[1:]).fetchall()
+    grp = [args.group] if args.group else []
+
+    def only_in(x, y):
+        """Names present in arch x but not in arch y."""
+        return conn.execute(
+            'SELECT name FROM v_presence WHERE arch = ?%s'
+            ' EXCEPT SELECT name FROM v_presence WHERE arch = ?%s ORDER BY name'
+            % (where, where), [x] + grp + [y] + grp).fetchall()
+
+    added = only_in(b, a)
+    removed = only_in(a, b)
     if args.json:
         json.dump({"from": a, "to": b,
                    "added": [r[0] for r in added],
@@ -251,7 +252,7 @@ def cmd_diff(conn, args):
         print()
         return
     print("%s -> %s: +%d added, -%d removed\n" % (a, b, len(added), len(removed)))
-    n = args.limit or len(added)
+    n = args.limit or max(len(added), len(removed))
     for label, rows in (("added in " + b, added), ("only in " + a, removed)):
         print("## %s (%d)" % (label, len(rows)))
         for r in rows[:n]:

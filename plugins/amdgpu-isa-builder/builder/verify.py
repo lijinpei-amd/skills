@@ -157,7 +157,36 @@ def verify_answers(dist):
     r = subprocess.run([sys.executable, isa, "selftest"],
                        capture_output=True, text=True)
     last = (r.stdout.strip().splitlines() or [""])[-1]
-    return check("query CLI selftest", r.returncode == 0, last)
+    check("query CLI selftest", r.returncode == 0, last)
+    return verify_diff_direction(isa)
+
+
+def verify_diff_direction(isa):
+    """`diff A B` must list B-only names as added and A-only names as removed,
+    and `-n 0` must print every row of both lists."""
+    def run(*argv):
+        return subprocess.run([sys.executable, isa, "diff", "cdna4", "cdna5"] + list(argv),
+                              capture_output=True, text=True).stdout
+    try:
+        d = json.loads(run("--json"))
+    except ValueError:
+        return check("diff: added/removed direction", False, "no JSON from isa.py diff")
+    # BUFFER_ATOMIC_ADD_U32 is the GFX12-style name CDNA5 adopted; CDNA4 has
+    # BUFFER_ATOMIC_ADD.
+    ok = ("BUFFER_ATOMIC_ADD_U32" in d["added"]
+          and "BUFFER_ATOMIC_ADD" in d["removed"])
+    check("diff: added/removed direction", ok,
+          "" if ok else "BUFFER_ATOMIC_ADD_U32 not in added, or BUFFER_ATOMIC_ADD not in removed")
+    shown = {"added": 0, "removed": 0}
+    section = None
+    for line in run("-n", "0").splitlines():
+        if line.startswith("## "):
+            section = "added" if line.startswith("## added") else "removed"
+        elif line.startswith("  ") and not line.startswith("  ... ") and section:
+            shown[section] += 1
+    want = {k: len(d[k]) for k in shown}
+    return check("diff -n 0 prints every row", shown == want,
+                 "" if shown == want else "shown %s, want %s" % (shown, want))
 
 
 def verify_skill_text(dist):
