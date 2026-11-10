@@ -9,6 +9,7 @@ marketplace/discovery mechanism. Edit here, reinstall there.
 | [`amdgpu-isa-builder`](plugins/amdgpu-isa-builder) | builds the `amdgpu-isa` reference skill locally from public AMD sources |
 | [`writing-python-docstrings-and-comments`](plugins/writing-python-docstrings-and-comments) | PEP 257 + Google-style Python docstrings, comments, TODOs, error messages |
 | [`locking-gpus`](plugins/locking-gpus) | per-GPU `flock` so concurrent jobs and benchmarks never share a GPU |
+| [`capture-att-trace`](plugins/capture-att-trace) | `rocprofv3 --att` thread traces of a GPU kernel, in versioned, indexed capture directories |
 
 ## Install
 
@@ -22,6 +23,7 @@ Each skill ships as its own plugin, so you install only what you want.
 /plugin install amdgpu-isa-builder@jinpei-skills
 /plugin install writing-python-docstrings-and-comments@jinpei-skills
 /plugin install locking-gpus@jinpei-skills
+/plugin install capture-att-trace@jinpei-skills
 /plugin disable amdgpu-isa-builder          # see below
 ```
 
@@ -33,6 +35,7 @@ codex plugin add working-on-llvm@jinpei-skills
 codex plugin add amdgpu-isa-builder@jinpei-skills
 codex plugin add writing-python-docstrings-and-comments@jinpei-skills
 codex plugin add locking-gpus@jinpei-skills
+codex plugin add capture-att-trace@jinpei-skills
 ```
 
 **pi**

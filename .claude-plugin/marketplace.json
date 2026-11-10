@@ -30,6 +30,12 @@
       "description": "Run GPU jobs under a per-GPU flock so concurrent benchmarks on a shared machine never share a GPU.",
       "category": "development",
       "source": "./plugins/locking-gpus"
+    },
+    {
+      "name": "capture-att-trace",
+      "description": "Capture rocprofv3 ATT thread traces of a GPU kernel into versioned, indexed capture directories.",
+      "category": "development",
+      "source": "./plugins/capture-att-trace"
     }
   ]
 }

@@ -7,7 +7,8 @@
     "skills": [
       "./plugins/working-on-llvm/skills",
       "./plugins/writing-python-docstrings-and-comments/skills",
-      "./plugins/locking-gpus/skills"
+      "./plugins/locking-gpus/skills",
+      "./plugins/capture-att-trace/skills"
     ]
   }
 }

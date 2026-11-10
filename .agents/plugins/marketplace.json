@@ -47,6 +47,17 @@
         "installation": "AVAILABLE"
       },
       "category": "Development"
+    },
+    {
+      "name": "capture-att-trace",
+      "source": {
+        "source": "local",
+        "path": "./plugins/capture-att-trace"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Development"
     }
   ]
 }

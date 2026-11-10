@@ -1,0 +1,23 @@
+{
+  "name": "capture-att-trace",
+  "version": "1.0.0",
+  "description": "Capture an AMD GPU thread trace (ATT / SQTT) of a kernel with rocprofv3 --att on CDNA3, CDNA4 and CDNA5, into versioned, indexed capture directories ready for ROCprof Compute Viewer.",
+  "author": {
+    "name": "Li Jinpei",
+    "email": "jinpli@amd.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "rocprofv3",
+    "att",
+    "thread-trace",
+    "sqtt",
+    "rocm",
+    "amdgpu",
+    "profiling",
+    "cdna3",
+    "cdna4",
+    "cdna5",
+    "rocprof-compute-viewer"
+  ]
+}
