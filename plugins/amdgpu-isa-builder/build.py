@@ -1,28 +1,30 @@
 #!/usr/bin/env python3
-"""amdgpu-isa-builder -- build the amdgpu-isa skill from public AMD sources.
+"""amdgpu-isa-builder -- build the amdgpu-isa corpus and the local ISA manuals.
 
 Stages, each independently runnable so a slow one is never re-run for free:
 
     fetch     download public AMD sources    -> sources/   (network)
     xml       machine-readable ISA -> SQLite -> build/isa.db
     gfx       LLVM AMDGPUUsage -> gfx map    -> build/isa.db (gfx_target)
-    manual    ISA PDFs -> markdown + indexes -> build/manual/  (LOCAL ONLY)
-    render    templates + db -> the skill    -> dist/amdgpu-isa
-    install   dist -> agent skills directories, manual pages included
-    verify    counts, licence boundary, selftest
-    all       fetch + xml + gfx + manual + render + verify
+    manual    ISA PDFs -> markdown + indexes -> persistent data directory
+              outside builder/plugin installs (LOCAL ONLY)
+    plugin    templates + db -> the redistributable amdgpu-isa plugin
+              (skills-repo checkout only; skipped elsewhere)
+    verify    counts, licence boundary, manual pages and query answers
+              --plugin also compares generated outputs (maintainers only)
+    all       fetch -> xml -> gfx -> manual -> verify
+              runs verify --quick; full checks require an explicit `verify`
+              plugin generation requires an explicit `plugin` stage
 
-The manual pages are not optional: an ISA skill without pseudocode and prose is
-not authoritative, so every build produces them and every install links them.
-That is why pymupdf is a hard dependency (.venv), and why the result is
-local-only -- see the licence note below.
+Two outputs, two licence regimes. The plugin carries only what may be
+redistributed: XML- and LLVM-derived data plus the query script. The manual
+pages derive from AMD's PDFs, which may not be redistributed, so they stay in
+the per-machine data directory, which plugin updates and removals preserve.
 
-Nothing AMD-derived is ever committed, and nothing built here may be shared:
-sources/, build/ and dist/ are gitignored, and `verify` fails the build if git
-is tracking any of it.
+sources/ and build/ are gitignored, and `verify` fails the build if git
+is tracking any of them or if a PDF-derived file reaches the plugin.
 
     python3 build.py all
-    python3 build.py install --link
 """
 
 import argparse
@@ -33,8 +35,6 @@ import time
 
 ROOT = os.path.dirname(os.path.realpath(__file__))
 BUILDER = os.path.join(ROOT, "builder")
-
-
 def run(script, argv, label):
     print("\n== %s" % label)
     t0 = time.time()
@@ -48,12 +48,11 @@ def run(script, argv, label):
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("stage", choices=["fetch", "xml", "gfx", "manual", "render",
-                                      "install", "verify", "all"])
-    ap.add_argument("--link", action="store_true", help="install: symlink, don't copy")
-    ap.add_argument("--agents", default="claude,codex,pi")
+    ap.add_argument("stage", choices=["fetch", "xml", "gfx", "manual", "plugin",
+                                      "verify", "all"])
     ap.add_argument("--force", action="store_true", help="fetch: re-download everything")
     args, extra = ap.parse_known_args()
+    gfx_failed = False
 
     if args.stage in ("fetch", "all"):
         run("fetch.py", (["--force"] if args.force else []) + extra,
@@ -61,7 +60,14 @@ def main():
     if args.stage in ("xml", "all"):
         run("xml_to_db.py", extra, "machine-readable ISA -> isa.db")
     if args.stage in ("gfx", "all"):
-        run("gfx_to_db.py", extra, "LLVM AMDGPUUsage -> gfx target map")
+        try:
+            run("gfx_to_db.py", extra, "LLVM AMDGPUUsage -> gfx target map")
+        except SystemExit as error:
+            if args.stage != "all":
+                raise
+            gfx_failed = True
+            print("WARNING: %s; continuing with manual pages and verification" % error,
+                  file=sys.stderr)
     if args.stage in ("manual", "all"):
         # The only stage that is not stdlib-only: pymupdf lives in .venv.
         venv = os.path.join(ROOT, ".venv", "bin", "python")
@@ -75,17 +81,13 @@ def main():
         if r.returncode:
             sys.exit("manual stage failed")
         print("   (%.1fs)" % (time.time() - t0))
-    if args.stage in ("render", "all"):
-        run("render.py", extra, "render the skill")
-    if args.stage == "install":
-        run("install.py", (["--link"] if args.link else [])
-            + ["--agents", args.agents] + extra, "install into agent skill dirs")
+    if args.stage == "plugin":
+        run("plugin.py", extra, "generate the amdgpu-isa plugin")
     if args.stage in ("verify", "all"):
-        run("verify.py", extra, "verify")
-
-    if args.stage == "all":
-        print("\nBuilt dist/amdgpu-isa. Install it with:"
-              "\n    python3 build.py install [--link]")
+        flags = ["--quick"] if args.stage == "all" else []
+        if gfx_failed:
+            flags.append("--skip-gfx")
+        run("verify.py", flags + extra, "verify")
     return 0
 
 

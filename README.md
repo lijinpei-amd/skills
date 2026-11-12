@@ -6,7 +6,8 @@ marketplace/discovery mechanism. Edit here, reinstall there.
 | skill | what it is |
 |---|---|
 | [`working-on-llvm`](plugins/working-on-llvm) | upstream llvm-project workflow: build/test, reduce, debug passes, PR hygiene |
-| [`amdgpu-isa-builder`](plugins/amdgpu-isa-builder) | builds the `amdgpu-isa` reference skill locally from public AMD sources |
+| [`amdgpu-isa`](plugins/amdgpu-isa) | AMD GPU instruction encodings, operands, aliases, gfx mappings and architecture differences; includes the XML- and LLVM-derived corpus |
+| [`amdgpu-isa-builder`](plugins/amdgpu-isa-builder) | builds the ISA manual pages locally for `amdgpu-isa`, and regenerates its corpus |
 | [`writing-python-docstrings-and-comments`](plugins/writing-python-docstrings-and-comments) | PEP 257 + Google-style Python docstrings, comments, TODOs, error messages |
 | [`locking-gpus`](plugins/locking-gpus) | per-GPU `flock` so concurrent jobs and benchmarks never share a GPU |
 | [`capture-att-trace`](plugins/capture-att-trace) | `rocprofv3 --att` thread traces of a GPU kernel, in versioned, indexed capture directories |
@@ -20,6 +21,7 @@ Each skill ships as its own plugin, so you install only what you want.
 ```
 /plugin marketplace add ~/development/skills
 /plugin install working-on-llvm@jinpei-skills
+/plugin install amdgpu-isa@jinpei-skills
 /plugin install amdgpu-isa-builder@jinpei-skills
 /plugin install writing-python-docstrings-and-comments@jinpei-skills
 /plugin install locking-gpus@jinpei-skills
@@ -32,6 +34,7 @@ Each skill ships as its own plugin, so you install only what you want.
 ```bash
 codex plugin marketplace add ~/development/skills
 codex plugin add working-on-llvm@jinpei-skills
+codex plugin add amdgpu-isa@jinpei-skills
 codex plugin add amdgpu-isa-builder@jinpei-skills
 codex plugin add writing-python-docstrings-and-comments@jinpei-skills
 codex plugin add locking-gpus@jinpei-skills
@@ -62,19 +65,28 @@ Claude Code reads `.claude-plugin/marketplace.json`, Codex reads
 
 ## `amdgpu-isa-builder` is meant to stay disabled
 
-It is a build tool, needed once per machine plus the odd refresh, so leave it
-disabled and pay nothing in ordinary sessions:
+It is a build tool, needed once per machine for the manual pages plus the odd
+corpus refresh, so leave it disabled and pay nothing in ordinary sessions:
 
 ```
-claude plugin enable amdgpu-isa-builder     # rebuild, then disable again
+claude plugin enable amdgpu-isa-builder     # build, then disable again
 codex  -c 'plugins."amdgpu-isa-builder@jinpei-skills".enabled=true'
 ```
 
-It ships the builder, **not** the corpus. AMD's machine-readable ISA XML is MIT
-and redistributable, but the ISA reference manuals grant review rights only, so
-the reference data is generated on your machine rather than committed here.
-`plugins/amdgpu-isa-builder/{sources,build,dist}` are gitignored for that reason,
-and its `build.py verify` fails if git ever starts tracking them.
+It ships the builder, **not** the corpus. The `amdgpu-isa` plugin ships the
+database (from AMD's MIT machine-readable ISA XML and LLVM's Apache-2.0 gfx
+table), the query script and their licences. AMD's ISA reference manuals grant
+review rights only, so their pages are never shipped: the builder converts them
+on your machine and writes them into persistent storage at
+`~/.local/share/amdgpu-isa/manual` (respects `$XDG_DATA_HOME`; override:
+`$AMDGPU_ISA_MANUAL`), where the plugin's `manual` command finds them.
+See the [builder README](plugins/amdgpu-isa-builder/README.md) for storage
+requirements and rebuild behavior.
+
+End-user `build.py all` builds local data and manuals without regenerating the
+tracked plugin, then runs corpus-independent `verify --quick` (roughly 1–2
+minutes with cached downloads). Maintainers regenerate explicitly with
+`build.py plugin` and run `build.py verify --plugin` before releasing.
 
 ## Updating a skill
 

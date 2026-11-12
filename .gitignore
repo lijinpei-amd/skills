@@ -2,8 +2,11 @@
 __pycache__/
 *.pyc
 
-# amdgpu-isa-builder: every AMD-derived byte lives here, never tracked
+# amdgpu-isa-builder: local sources, manuals and build outputs stay untracked
 plugins/amdgpu-isa-builder/sources/
 plugins/amdgpu-isa-builder/build/
 plugins/amdgpu-isa-builder/dist/
 plugins/amdgpu-isa-builder/.venv/
+
+# A local manual link must not enter the redistributable reference plugin.
+plugins/amdgpu-isa/skills/amdgpu-isa/manual

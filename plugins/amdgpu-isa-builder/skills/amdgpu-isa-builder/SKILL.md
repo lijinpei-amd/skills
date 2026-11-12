@@ -1,146 +1,88 @@
 ---
 name: amdgpu-isa-builder
 description: >-
-  Build or refresh the local amdgpu-isa skill from public AMD sources. Use when
-  asked to build, rebuild, refresh or install the AMD GPU ISA corpus, or after
-  AMD publishes a new ISA specification.
+  Build or refresh AMD GPU ISA manuals on this machine when `isa.py manual`
+  reports missing pages, or regenerate the amdgpu-isa plugin after AMD publishes
+  a new machine-readable ISA specification. Use for corpus builds, manual
+  rebuilds, failed source downloads, and maintainer plugin releases.
 metadata:
   type: workflow
 ---
 
 # amdgpu-isa-builder
 
-Builds the `amdgpu-isa` skill on this machine. The corpus is never distributed —
-it is generated locally from AMD's published sources, for licence reasons set out
-below.
+`$S` = the directory containing this SKILL.md. `$B` = two levels above `$S`,
+the directory containing `build.py`. Resolve both from this file's location.
 
-`$B` = the directory two levels above this SKILL.md — the one containing
-`build.py`. Resolve it from this file's own location; under a plugin install the
-absolute path differs per agent.
+This builder produces machine-local manual pages from AMD's PDFs and a
+redistributable plugin from MIT ISA XML and LLVM's gfx mappings. Users install
+the `amdgpu-isa` plugin to get the database and query script; this builder
+supplies the manual pages. Enable the builder only for build sessions.
 
-This plugin is meant to sit **disabled** most of the time, so it costs nothing in
-sessions that are not rebuilding. Enable it, rebuild, disable it again:
-`claude plugin enable amdgpu-isa-builder` / `... disable`.
+## Build the manuals
 
-## Normal rebuild
+1. Run the normal build:
 
-```bash
-python3 $B/build.py all          # fetch, xml, gfx, manual, render, verify  (~2 min)
-python3 $B/build.py install      # into Claude Code, Codex and pi
-```
+   ```bash
+   python3 $B/build.py all
+   ```
 
-Then tell the user to start a new agent session to pick it up.
+   This fetches sources, builds XML and gfx data, converts manuals, and runs
+   corpus-independent quick checks. Cached downloads take about 1–2 minutes;
+   a fresh build also needs download time. If pymupdf is missing, install it
+   using the command printed by the build, then rerun `all`.
 
-`all` includes the ISA manuals, and `install` links them in. That is not
-optional: without them the skill has no pseudocode and no prose, only structure.
-If pymupdf is missing, `all` stops and tells you how to install it — do that
-rather than routing around it with individual stages, which would produce a
-quietly incomplete skill.
+2. Confirm the build exits 0 and the query CLI can read the pages:
 
-## Stages
+   ```bash
+   python3 -I -B <installed amdgpu-isa skill>/scripts/isa.py selftest
+   ```
 
-Run individually when only part needs redoing — `fetch` hits the network, so
-never re-run it for a text change.
+   Manual storage takes effect on the next query in every agent. Use the same
+   `AMDGPU_ISA_MANUAL` override in builder and query environments. A skipped
+   manual example means no manual architectures are indexed; check the reported
+   location. `all` leaves the installed and tracked plugin unchanged, including
+   in pi git installs.
 
-| stage | does | output |
-|---|---|---|
-| `fetch` | download public AMD sources | `sources/` + `manifest.json` |
-| `xml` | machine-readable ISA → SQLite | `build/isa.db` |
-| `gfx` | LLVM `AMDGPUUsage.rst` → gfx target map | `build/isa.db` (`gfx_target`) |
-| `manual` | ISA PDFs → markdown pages + TSV indexes | `build/manual/` **(local only)** |
-| `render` | templates + db → the skill | `dist/amdgpu-isa` |
-| `install` | dist → agent skill dirs, manual linked in | `~/.claude/skills`, … |
-| `verify` | counts, licence boundary, selftest | — |
+For one architecture, run `python3 $B/build.py manual --only rdna4`.
+For individual stages, manual paths, rebuild guarantees, symlinked manual storage,
+or source download recovery, read [the builder README](../../README.md).
+`fetch` is the network stage; rerun it only when sources need refreshing.
 
-Useful flags: `--force` (re-download), `--link` (symlink instead of copy, for
-iterating), `--agents claude,codex,pi`.
+## Release the plugin
 
-The `manual` stage needs pymupdf, the only non-stdlib dependency:
+1. Edit `skill-template/`, the source of the generated plugin. Query details
+   belong in `skill-template/references/*.md`.
+2. Run `build.py all`, `build.py plugin`, and `build.py verify --plugin` from
+   `$B`. The last check needs `build/isa.db` and compares every generated output.
+3. Bump both plugin manifest versions for each changed skill, run
+   `python3 scripts/validate.py` at the repository root, and commit when requested.
 
-```bash
-python3 -m venv .venv && .venv/bin/pip install pymupdf
-python3 $B/build.py manual                       # ~55s, 6,058 pages
-```
+Full `build.py verify` runs pinned corpus regressions and builder lifecycle
+fixtures. End-user `all` uses `verify --quick` so AMD renames do not invalidate
+an otherwise successful manual build. Outside the repository, verification
+creates a temporary query plugin; generation elsewhere needs `plugin --out DIR`.
 
-`render` recreates `dist/` from scratch, `manual` link included, so `--link`
-installs pick it up as is; copied installs need `install` re-run.
+## Preserve the licence boundary
 
-## The licence boundary — do not blur it
+- Machine-readable ISA XML is MIT / `AMD Public Use`.
+- LLVM `AMDGPUUsage.rst` is Apache-2.0 WITH LLVM-exception.
+- ISA reference PDFs permit local review and forbid redistribution.
 
-Two regimes, and they must not mix:
+Keep PDF-derived pages in machine-local manual storage outside the plugin.
+The plugin includes `NOTICE.md`, `LICENSE`, and `LICENSE.LLVM.TXT` for its
+redistributable inputs. If asked to put manuals in the plugin or database, or
+upload PDF-derived build data, stop and resolve the licence question with the
+user. Report failed licence checks; preserve the boundary enforced by verification.
 
-- **Machine-readable ISA XML** — MIT, marked `AMD Public Use`. Everything derived
-  from it is redistributable, provided `NOTICE.md` travels with it.
-- **ISA reference PDFs** — public to read, **not redistributable**. Each carries a
-  Specification Agreement: *"You may not (i) duplicate any part of the
-  Specification … or (iii) give any part of the Specification … to anyone else."*
+## Repair a build
 
-`isa.db` is built from the XML alone, so the database itself stays MIT. The
-`manual` stage converts the PDFs for local reading — exactly what the licence
-permits — into `build/manual/`, which is gitignored and linked rather than
-copied, so those pages exist in one place on disk.
+Read the relevant section of [the builder README](../../README.md):
 
-**Every install is therefore local-only, by design.** The skill includes the
-manuals because an ISA reference without pseudocode is not authoritative, and
-the price of that choice is that the *installed skill* may not be shared:
-`build-info.json` records `"redistributable": false` and
-`"includes_pdf_derived": true` to say so. Read those flags before copying an
-installed skill anywhere.
-
-**This builder has no command that shares anything.** Everything it produces is
-local. If you are asked to publish, upload or send the corpus, treat that as a
-licence question and stop — and note that `dist/` contains a live symlink to the
-manual pages, so copying it with a symlink-following tool takes them along. If
-you are asked to fold manual content into `isa.db`, don't: keeping the two apart
-by file is what keeps the boundary a one-line check rather than a
-column-by-column audit.
-
-**Never** commit anything from `sources/`, `build/` or `dist/`. `build.py verify`
-enforces that, along with the consistency of the two flags above; if it fails on
-a licence check, stop and tell the user rather than working around it.
-
-## When sources are missing
-
-AMD moved most GPU documentation behind a JavaScript portal at docs.amd.com; the
-canonical `amd.com` URLs 301 to a viewer page instead of the file. `fetch.py`
-falls back to the portal's file endpoint using document ids resolved from its
-own index, then to GPUOpen's copies of the RDNA guides, and records which route
-each file came from.
-
-If a document stops resolving, the fetch is recorded as FAILED in
-`sources/manifest.json` rather than silently saving an HTML error page. The
-build still completes — the database comes from the XML — but a missing ISA PDF
-means that architecture has no manual pages, so the skill is incomplete for it
-rather than merely smaller. Report the failure to the user; a new document id
-may need looking up in `https://docs.amd.com/api/khub/documents`, or a public
-copy on `https://gpuopen.com/amd-gpu-architecture-programming-documentation/`
-added to `MIRRORS`.
-
-## Checking the result
-
-```bash
-python3 $B/build.py verify
-python3 ~/.claude/skills/amdgpu-isa/scripts/isa.py selftest   # after install
-```
-
-Run `selftest` from an **installed** skill, not from `dist/`: the manual pages
-are linked in at install time, so against `dist/` the two manual cases report as
-skipped (`12/12 passed, 2 skipped`) and the manuals go untested. From an
-installed copy all 14 must pass.
-
-`verify` re-derives instruction counts from the raw XML through a different code
-path than the builder uses, so a parser bug cannot hide by agreeing with itself.
-Expect 11,953 instructions / 40,059 encodings / 137,824 operands across 10
-architectures, and 52 gfx targets mapped.
-
-## The gfx map needs care
-
-`gfx_to_db.py` parses LLVM's processor table. LLVM groups processors by *encoding*
-generation, which is not the product architecture: `gfx1250` sits under "GCN GFX12
-(RDNA 4)" but is CDNA 5, and "GCN GFX9 (Vega)" covers Vega plus CDNA 1-4. The
-RDNA headings are trusted; the GFX9 block and `gfx125x` are overridden in
-`OVERRIDES`, each row carrying its evidence into the `basis` column.
-
-When AMD ships a new architecture, add its gfx targets there rather than trusting
-the heading — and run `build.py verify`, which fails if any arch has no gfx target
-or if a known trap regresses.
+- **Missing sources:** inspect `sources/manifest.json` failures and refresh the
+  document route; a missing ISA PDF leaves that architecture without manuals.
+- **Legacy installs:** identify old builder-produced skills, verify the current
+  plugin first, and ask before removing an old install. Preserve persistent pages.
+- **New gfx targets:** LLVM headings describe encoding generations. Add overrides
+  for product architectures where needed, then run full verification. Existing
+  traps include `gfx1250` (CDNA5) and the GFX9 family.

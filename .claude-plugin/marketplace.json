@@ -14,8 +14,14 @@
       "source": "./plugins/working-on-llvm"
     },
     {
+      "name": "amdgpu-isa",
+      "description": "AMD GPU ISA reference for CDNA 1-5 and RDNA 1-4: instruction encodings, operands, gfx mappings, aliases and cross-generation diffs from AMD's MIT-licensed machine-readable ISA XML.",
+      "category": "development",
+      "source": "./plugins/amdgpu-isa"
+    },
+    {
       "name": "amdgpu-isa-builder",
-      "description": "Build or refresh the local amdgpu-isa skill from public AMD sources. Ships the builder, not the corpus.",
+      "description": "Builds the AMD ISA manual pages locally for amdgpu-isa and regenerates its corpus. Ships the builder, not the corpus.",
       "category": "development",
       "source": "./plugins/amdgpu-isa-builder"
     },

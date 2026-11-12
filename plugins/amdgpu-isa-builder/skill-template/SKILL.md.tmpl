@@ -1,7 +1,7 @@
 ---
 name: amdgpu-isa
 description: >-
-  AMD GPU ISA reference for $n_archs architectures ($arch_list; gfx900-gfx1250,
+  AMD GPU ISA reference for $n_archs architectures ($arch_list;
   MI100-MI450, Radeon RX 5000-9000). Instruction encodings, opcodes, operand
   types and sizes, microcode bit layouts, MFMA/WMMA matrix ops, functional
   groups, aliases, and cross-generation diffs, queried from the command line.
@@ -16,27 +16,29 @@ metadata:
 # AMD GPU ISA
 
 $n_instructions instructions, $n_encodings encodings, $n_operands operands across
-$n_archs architectures, in a $db_size SQLite database. Built $built from
-$source_desc.
+$n_archs architectures, in a $db_size SQLite database, from $source_desc.
+Latest architecture release date in the source XML: $built.
 
 **Query with `scripts/isa.py`. Never `Read` the database.** `$S` below = the
 directory containing this SKILL.md — resolve it from this file's location, the
 install path differs per agent.
 
 ```bash
-python3 $S/scripts/isa.py --help
+python3 -I -B $S/scripts/isa.py --help
 ```
 
 There is no `sqlite3` CLI dependency — `isa.py` uses Python's stdlib, so it runs
 anywhere python3 does.
+Trust `which` for instruction presence and accepted spellings; query the corpus
+before answering from memory.
 
 ## Decision table
 
 | question | command |
 |---|---|
 | everything about one instruction | `isa.py show V_FMA_F32 --arch rdna4` |
-| which archs have it, opcode per arch | `isa.py which V_DOT2_F32_BF16` |
-| find instructions by pattern | `isa.py search '^v_mfma.*f16$' [--arch A] [--group G]` |
+| which archs have it, opcodes per encoding | `isa.py which V_DOT2_F32_BF16` |
+| find instructions by pattern | `isa.py search '^v_mfma.*f16$$' [--arch A] [--group G]` |
 | search descriptions, not names | `isa.py search --fts 'dot AND bf16'` |
 | everything in a group / encoding | `isa.py list --arch cdna5 --group VALU` |
 | microcode bit layout of an encoding | `isa.py encodings --arch rdna4 --encoding ENC_VOP3` |
@@ -49,29 +51,32 @@ anywhere python3 does.
 | search the manual prose | `isa.py manual --grep 'wait state' [--arch A]` |
 | manual table of contents | `isa.py manual --toc --arch cdna5 [--level 2]` |
 | anything else | `isa.py sql "<SELECT ...>"` |
-| verify the corpus answers correctly | `isa.py selftest` ($n_selftests examples) |
+| verify the corpus answers correctly | `isa.py selftest` ($n_selftests checks, $n_manual_selftests need the manual) |
 
-Every subcommand takes `--json` and `-n N` (`-n 0` = unlimited). **The true row
-count is always reported**, so a truncated listing never reads as a complete
-answer. Exit 1 means no match, and always suggests a next command.
+Every subcommand accepts `--json` and `-n N` (`-n 0` = unlimited). `which`
+shows all rows by default; other commands default to 50. No-match lookups exit 1
+with a suggested command. `diff` reports B-only names as added and A-only names
+as removed, limiting each side independently.
 
-Aliases resolve automatically: `isa.py show S_LOAD_DWORD` finds `S_LOAD_B32` and
-says so. Names drift between generations and between LLVM and the manuals — trust
-`which`, not memory.
+Aliases resolve per architecture. `which` and `show` report exact-spelling
+matches and other architectures with renamed or sibling spellings as "also
+present as". For instruction presence, count their union once per architecture.
+Without `--arch`, `show` labels the architecture used for operands and manual links.
+
+For JSON fields, variant counts, alias identities, or SQL limits and views,
+read [query semantics](references/query-semantics.md).
+
+Architecture and group names are case-insensitive; unknown names exit 1 with
+valid choices. Use `rdna3_5` for RDNA3.5. `diff --group` filters the reported
+side's group and compares membership against the other architecture's full
+instruction set, so moving groups does not count as adding/removing an instruction.
 
 ## Writing SQL
 
-When the subcommands do not fit, query directly. `isa.py schema` prints the full
-schema; these flattened views answer most questions with no join:
-
-```
-v_inst      arch, name, "group", encoding, opcode, condition, description
-v_presence  arch, name, "group", n_encodings, opcode      -- one row per (name, arch)
-v_name      arch, query_name, canonical_name, is_alias    -- alias resolution
-v_operand   arch, name, encoding, condition, ord, field_name, operand_type,
-            data_format, size, is_input, is_output, is_implicit
-v_gfx       gfx, arch, architecture_name, llvm_generation, kind, products, basis
-```
+Use `isa.py schema` to inspect the schema, then `isa.py sql "<SELECT ...>"`
+when the canned commands do not fit. The flattened views are `v_inst`,
+`v_presence`, `v_name`, `v_operand`, and `v_gfx`; read the query semantics
+reference before interpreting summary counts or writing joins.
 
 ```bash
 isa.py sql "SELECT arch, COUNT(*) FROM v_presence WHERE \"group\"='VALU' GROUP BY arch"
@@ -79,16 +84,25 @@ isa.py sql "SELECT name FROM v_presence WHERE arch='cdna5'
             EXCEPT SELECT name FROM v_presence WHERE arch='cdna4'"
 ```
 
-Only `SELECT`/`WITH` are accepted and the connection is read-only, so a query
-cannot damage the corpus. Base tables — `instruction`, `inst_encoding`,
-`operand`, `encoding`, `encoding_field`, `data_format`, `operand_type`,
-`functional_group`, `arch` — are there when a view is not enough.
+The connection is read-only. SQL has a 10-second deadline; narrow expensive
+queries. Truncated SQL results report a lower bound, not an exact total.
 
 ## Known limits
 
 - **Structure vs semantics.** `isa.db` is built from AMD's machine-readable XML:
   names, encodings, opcodes, operands, one-line descriptions. Pseudocode, hazards
-  and prose live in the ISA manuals. $pdf_status
+  and prose live in AMD's ISA reference manuals, which win when the two
+  disagree. Their PDF licence forbids redistribution, so the manual pages are not
+  shipped: amdgpu-isa-builder writes them per machine into persistent storage at
+  `~/.local/share/amdgpu-isa/manual` (respects XDG_DATA_HOME; override:
+  `$$AMDGPU_ISA_MANUAL`). Use the same override in the builder and query
+  environments. For storage and rebuild behavior, see the builder README.
+  Manual query results include
+  absolute page paths. With them,
+  `isa.py manual` searches them and `show` prints an instruction's definition
+  page. Without them, `manual` exits 1 with build or query guidance: answer from
+  the database when the architecture has XML data, and say the semantics were
+  not checked. Manual-only architectures use `manual --grep` and `--toc`.
 - **gfx mapping is LLVM's, not AMD's.** The XML names no gfx targets; the map
   comes from LLVM's `AMDGPUUsage.rst`. Beware that LLVM's headings are *encoding*
   generations, not product architectures — it files `gfx1250` under "GCN GFX12
@@ -102,12 +116,29 @@ cannot damage the corpus. Base tables — `instruction`, `inst_encoding`,
 
 ## Refreshing
 
-Corpus stale, or AMD published a new architecture? Rebuild it:
+The database ships with this skill; a newer AMD release reaches it through a
+plugin update. To build the manual pages on this machine (roughly 1–2 minutes
+with cached downloads, needs pymupdf):
 
 ```
-$rebuild_hint
+# Claude Code (the builder ships disabled; enable it just for the build)
+claude plugin enable amdgpu-isa-builder
+#   ...then ask: "build the AMD ISA manual pages"
+
+# or run it directly, no agent involved
+python3 <builder>/build.py all
 ```
+
+`all` builds local manuals and data and checks them without regenerating this
+plugin. For maintainer releases, follow the builder's release workflow.
+
+`isa.py selftest` then runs all $n_selftests checks, choosing an indexed manual
+architecture and preferring rdna4. It skips the $n_manual_selftests manual checks
+when no manual architectures are indexed.
 
 ## Provenance
 
-$notice_line
+Instruction data: AMD machine-readable ISA XML, MIT / "AMD Public Use". The gfx
+target mappings derive from LLVM's `AMDGPUUsage.rst` under Apache-2.0 with LLVM
+Exceptions. See NOTICE.md and LICENSE.LLVM.TXT for provenance and license terms.
+The query script and skill text are MIT-licensed; see LICENSE.

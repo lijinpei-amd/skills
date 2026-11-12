@@ -17,10 +17,12 @@ Usage:  python3 builder/gfx_to_db.py [--rst FILE] [--db FILE]
 """
 
 import argparse
+from contextlib import closing
 import os
 import re
 import sqlite3
 import sys
+from database import build_stage, finalize
 
 ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
@@ -90,8 +92,13 @@ def parse_table(text):
     for line in lines[body:]:
         if line.strip().startswith("==="):
             break  # table ends
+        if line.strip() and not line.strip().strip("- "):
+            continue  # A section divider is table markup, not a cell value.
         h = re.match(r"\s*\*\*(.+?)\*\*", line)
         if h:
+            if row:
+                yield row
+                row = None
             heading = re.sub(r"\s*\[.*", "", h.group(1)).strip()
             continue
         cols = [line[s:e].strip() for s, e in spans]
@@ -103,7 +110,14 @@ def parse_table(text):
         elif row and any(cols):
             for i, c in enumerate(cols[1:], start=2):  # continuation lines
                 if c:
-                    row[i] = (row[i] + " " + c).strip()
+                    if i in (3, 4):  # Triple and kind are scalars repeated by sub-rows.
+                        if not row[i]:
+                            row[i] = c
+                        elif c != row[i]:
+                            raise ValueError("conflicting triple/kind for %s: %r and %r"
+                                             % (row[1], row[i], c))
+                    else:
+                        row[i] = (row[i] + " " + c).strip()
     if row:
         yield row
 
@@ -134,44 +148,52 @@ def main():
     if not os.path.exists(args.db):
         sys.exit("no %s -- run 'build.py xml' first" % args.db)
 
-    conn = sqlite3.connect(args.db)
-    conn.executescript(SCHEMA)
-    known = {r[0] for r in conn.execute("SELECT arch FROM arch")}
+    try:
+        with build_stage(args.db, ".isa-gfx-", copy_source=True) as staging, \
+                closing(sqlite3.connect(staging)) as conn:
+            conn.executescript(SCHEMA)
+            known = {r[0] for r in conn.execute("SELECT arch FROM arch")}
 
-    n, mapped = 0, 0
-    for heading, gfx, alt, triple, kind, feats, props, os_sup, products in (
-            r + [""] * (9 - len(r)) for r in parse_table(
-                open(args.rst, encoding="utf-8").read())):
-        n += 1
-        if gfx in OVERRIDES:
-            arch, basis = OVERRIDES[gfx]
-        else:
-            key = next((k for k in HEADING_ARCH
-                        if heading and heading.endswith("(%s)" % k)), None)
-            if key:
-                arch, basis = HEADING_ARCH[key], "LLVM heading %r" % heading
-            else:
-                arch, basis = None, NO_SPEC
-        if arch and arch not in known:
-            arch, basis = None, "arch %r not in this corpus" % arch
-        if arch:
-            mapped += 1
-        conn.execute("INSERT OR REPLACE INTO gfx_target VALUES (?,?,?,?,?,?,?)",
-                     (gfx, arch, heading, triple.strip("` "), kind,
-                      clean_products(products), basis))
-    conn.commit()
+            n, mapped = 0, 0
+            with open(args.rst, encoding="utf-8") as stream:
+                text = stream.read()
+            for heading, gfx, alt, triple, kind, feats, props, os_sup, products in (
+                    r + [""] * (9 - len(r)) for r in parse_table(text)):
+                n += 1
+                if gfx in OVERRIDES:
+                    arch, basis = OVERRIDES[gfx]
+                else:
+                    key = next((k for k in HEADING_ARCH
+                                if heading and heading.endswith("(%s)" % k)), None)
+                    if key:
+                        arch, basis = HEADING_ARCH[key], "LLVM heading %r" % heading
+                    else:
+                        arch, basis = None, NO_SPEC
+                if arch and arch not in known:
+                    arch, basis = None, "arch %r not in this corpus" % arch
+                if arch:
+                    mapped += 1
+                conn.execute("INSERT OR REPLACE INTO gfx_target VALUES (?,?,?,?,?,?,?)",
+                             (gfx, arch, heading, triple.strip("` "), kind,
+                              clean_products(products), basis))
+            conn.commit()
 
-    covered = {r[0] for r in conn.execute(
-        "SELECT DISTINCT arch FROM gfx_target WHERE arch IS NOT NULL")}
-    missing = sorted(known - covered)
-    for r in conn.execute("SELECT arch, COUNT(*) FROM gfx_target"
-                          " WHERE arch IS NOT NULL GROUP BY arch ORDER BY arch"):
-        print("  %-9s %d gfx target(s)" % r)
-    if missing:
-        print("  WARNING: no gfx target maps to %s" % ", ".join(missing))
-    print("\n%d gfx targets parsed, %d mapped to an arch in this corpus" % (n, mapped))
-    conn.close()
-    return 1 if missing else 0
+            covered = {r[0] for r in conn.execute(
+                "SELECT DISTINCT arch FROM gfx_target WHERE arch IS NOT NULL")}
+            missing = sorted(known - covered)
+            for r in conn.execute("SELECT arch, COUNT(*) FROM gfx_target"
+                                  " WHERE arch IS NOT NULL GROUP BY arch ORDER BY arch"):
+                print("  %-9s %d gfx target(s)" % r)
+            if missing:
+                print("  WARNING: no gfx target maps to %s" % ", ".join(missing))
+            print("\n%d gfx targets parsed, %d mapped to an arch in this corpus" % (n, mapped))
+            if missing:
+                return 1
+            finalize(conn, args.db)
+            return 0
+    except ValueError as error:
+        print("gfx map failed: %s" % error, file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

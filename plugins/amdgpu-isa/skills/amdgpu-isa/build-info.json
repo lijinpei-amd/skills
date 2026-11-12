@@ -1,0 +1,42 @@
+{
+  "built": "2026-08-03",
+  "archs": [
+    "cdna1",
+    "cdna2",
+    "cdna3",
+    "cdna4",
+    "cdna5",
+    "rdna1",
+    "rdna2",
+    "rdna3",
+    "rdna3_5",
+    "rdna4"
+  ],
+  "counts": {
+    "encoding": 410,
+    "encoding_field": 4246,
+    "inst_encoding": 40059,
+    "instruction": 11953,
+    "operand": 137824
+  },
+  "db_redistributable": true,
+  "includes_pdf_derived": false,
+  "redistributable": true,
+  "sources": [
+    {
+      "file": "xml/AMD_GPU_MR_ISA_XML.zip",
+      "url": "https://gpuopen.com/download/machine-readable-isa/latest/",
+      "sha256": "82404f1126761b7877595b622afa7e1f311f2f41e89a3abe9aaf8ad045c082e2"
+    },
+    {
+      "file": "llvm/AMDGPUUsage.rst",
+      "url": "https://raw.githubusercontent.com/llvm/llvm-project/4ee9dafceb16232b5c06857551228ee5471dc5cd/llvm/docs/AMDGPUUsage.rst",
+      "sha256": "4034ada040fa8cfb68df3513b1529606dc9cbe2a71363ac42a22d9a48d1e7c53",
+      "llvm_commit": "4ee9dafceb16232b5c06857551228ee5471dc5cd",
+      "license": "Apache-2.0 WITH LLVM-exception",
+      "role": "gfx_target and v_gfx mappings"
+    }
+  ],
+  "db_sha256": "6b034906ca1155327c992045d97df8f5b3e0accb31d315d0cd01b1ebadcf2ccf",
+  "db_license": "MIT AND (Apache-2.0 WITH LLVM-exception)"
+}

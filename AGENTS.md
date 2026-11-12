@@ -48,3 +48,11 @@ granularity.
 
 Bump `version` in **both** `plugin.json` files. Installs are copies, so without a
 version bump the agents keep serving the old content.
+
+`plugins/amdgpu-isa/skills/amdgpu-isa/` is generated: edit
+`plugins/amdgpu-isa-builder/skill-template/` and run
+`python3 plugins/amdgpu-isa-builder/build.py plugin`, never the output itself.
+`scripts/validate.py` compares verbatim generated copies, including references.
+Check generated outputs with `build.py verify --plugin`, then run repository
+validation. The release workflow and manual storage details are in
+`plugins/amdgpu-isa-builder/README.md`.

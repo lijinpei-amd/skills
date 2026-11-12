@@ -13,10 +13,12 @@ Usage:  python3 builder/xml_to_db.py [--sources DIR] [--out FILE]
 """
 
 import argparse
+from contextlib import closing
 import os
 import re
 import sqlite3
 import sys
+from database import build_stage, finalize
 import time
 import xml.etree.ElementTree as ET
 
@@ -367,45 +369,39 @@ def main():
     if not files:
         sys.exit("no XML in %s -- run 'build.py fetch' first" % args.sources)
 
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    if os.path.exists(args.out):
-        os.remove(args.out)
-    conn = sqlite3.connect(args.out)
-    conn.executescript(SCHEMA)
-
+    args.out = os.path.abspath(args.out)
     t0 = time.time()
     totals = {}
-    for f in files:
-        arch, arch_name, counts = load_arch(conn, os.path.join(args.sources, f))
-        for k, v in counts.items():
-            totals[k] = totals.get(k, 0) + v
-        print("  %-10s %-16s %5d instructions  %5d encodings  %6d operands"
-              % (arch, arch_name or "?", counts["instruction"],
-                 counts["inst_encoding"], counts["operand"]))
+    with build_stage(args.out, ".isa-xml-") as staging:
+        with closing(sqlite3.connect(staging)) as conn:
+            conn.executescript(SCHEMA)
+            for f in files:
+                arch, arch_name, counts = load_arch(conn, os.path.join(args.sources, f))
+                for k, v in counts.items():
+                    totals[k] = totals.get(k, 0) + v
+                print("  %-10s %-16s %5d instructions  %5d encodings  %6d operands"
+                      % (arch, arch_name or "?", counts["instruction"],
+                         counts["inst_encoding"], counts["operand"]))
 
-    conn.executescript(INDEXES)
-    conn.executescript(VIEWS)
+            conn.executescript(INDEXES)
+            conn.executescript(VIEWS)
 
-    # Full-text search over names and descriptions. Populated from the XML only.
-    conn.executescript("""
-        CREATE VIRTUAL TABLE fts_inst USING fts5(
-            name, description, arch UNINDEXED, inst_id UNINDEXED);
-    """)
-    conn.execute("INSERT INTO fts_inst(name, description, arch, inst_id)"
-                 " SELECT name, description, arch, inst_id FROM instruction")
+            # Full-text search over names and descriptions. Populated from the XML only.
+            conn.executescript("""
+                CREATE VIRTUAL TABLE fts_inst USING fts5(
+                    name, description, arch UNINDEXED, inst_id UNINDEXED);
+            """)
+            conn.execute("INSERT INTO fts_inst(name, description, arch, inst_id)"
+                         " SELECT name, description, arch, inst_id FROM instruction")
 
-    for k, v in sorted(totals.items()):
-        conn.execute("INSERT OR REPLACE INTO build_info VALUES (?,?)",
-                     ("count_" + k, str(v)))
-    conn.execute("INSERT OR REPLACE INTO build_info VALUES ('built', ?)",
-                 (time.strftime("%Y-%m-%d %H:%M:%S"),))
-    conn.execute("INSERT OR REPLACE INTO build_info VALUES ('source', "
-                 "'AMD machine-readable ISA XML (MIT, AMD Public Use)')")
-    conn.commit()
-    conn.executescript("PRAGMA journal_mode = DELETE;")
-    conn.execute("VACUUM")
-    conn.commit()
-    conn.close()
+            for k, v in sorted(totals.items()):
+                conn.execute("INSERT OR REPLACE INTO build_info VALUES (?,?)",
+                             ("count_" + k, str(v)))
+            conn.execute("INSERT OR REPLACE INTO build_info VALUES ('built', ?)",
+                         (conn.execute("SELECT MAX(release_date) FROM arch").fetchone()[0] or "unknown",))
+            conn.execute("INSERT OR REPLACE INTO build_info VALUES ('source', "
+                         "'AMD machine-readable ISA XML (MIT, AMD Public Use)')")
+            finalize(conn, args.out)
 
     size = os.path.getsize(args.out)
     print("\n%d archs, %d instructions, %d encodings, %d operands"

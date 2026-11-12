@@ -1,0 +1,144 @@
+---
+name: amdgpu-isa
+description: >-
+  AMD GPU ISA reference for 10 architectures (CDNA 1-5, RDNA 1-4;
+  MI100-MI450, Radeon RX 5000-9000). Instruction encodings, opcodes, operand
+  types and sizes, microcode bit layouts, MFMA/WMMA matrix ops, functional
+  groups, aliases, and cross-generation diffs, queried from the command line.
+  Use when working on the LLVM AMDGPU backend, reading or writing GCN/RDNA
+  assembly, decoding an encoding by hand, or answering questions like "does
+  gfx950 have V_MFMA_F32_16X16X32_F16", "what is the opcode of S_WAIT_LOADCNT
+  on RDNA4", or "what changed between CDNA4 and CDNA5".
+metadata:
+  type: reference
+---
+
+# AMD GPU ISA
+
+11,953 instructions, 40,059 encodings, 137,824 operands across
+10 architectures, in a 19 MB SQLite database, from AMD machine-readable ISA XML (MIT, AMD Public Use).
+Latest architecture release date in the source XML: 2026-08-03.
+
+**Query with `scripts/isa.py`. Never `Read` the database.** `$S` below = the
+directory containing this SKILL.md — resolve it from this file's location, the
+install path differs per agent.
+
+```bash
+python3 -I -B $S/scripts/isa.py --help
+```
+
+There is no `sqlite3` CLI dependency — `isa.py` uses Python's stdlib, so it runs
+anywhere python3 does.
+Trust `which` for instruction presence and accepted spellings; query the corpus
+before answering from memory.
+
+## Decision table
+
+| question | command |
+|---|---|
+| everything about one instruction | `isa.py show V_FMA_F32 --arch rdna4` |
+| which archs have it, opcodes per encoding | `isa.py which V_DOT2_F32_BF16` |
+| find instructions by pattern | `isa.py search '^v_mfma.*f16$' [--arch A] [--group G]` |
+| search descriptions, not names | `isa.py search --fts 'dot AND bf16'` |
+| everything in a group / encoding | `isa.py list --arch cdna5 --group VALU` |
+| microcode bit layout of an encoding | `isa.py encodings --arch rdna4 --encoding ENC_VOP3` |
+| all encodings in an arch | `isa.py encodings --arch rdna4` |
+| what changed between two archs | `isa.py diff cdna4 cdna5 [--group SMEM]` |
+| which arch is this gfx target? | `isa.py gfx gfx950` (`gfx` prefix optional) |
+| gfx targets of an arch | `isa.py gfx --arch cdna5` |
+| arch / group overview | `isa.py archs`, `isa.py groups --arch cdna5` |
+| what does it actually compute? | `isa.py manual --inst V_FMA_F32 --arch rdna4` |
+| search the manual prose | `isa.py manual --grep 'wait state' [--arch A]` |
+| manual table of contents | `isa.py manual --toc --arch cdna5 [--level 2]` |
+| anything else | `isa.py sql "<SELECT ...>"` |
+| verify the corpus answers correctly | `isa.py selftest` (14 checks, 2 need the manual) |
+
+Every subcommand accepts `--json` and `-n N` (`-n 0` = unlimited). `which`
+shows all rows by default; other commands default to 50. No-match lookups exit 1
+with a suggested command. `diff` reports B-only names as added and A-only names
+as removed, limiting each side independently.
+
+Aliases resolve per architecture. `which` and `show` report exact-spelling
+matches and other architectures with renamed or sibling spellings as "also
+present as". For instruction presence, count their union once per architecture.
+Without `--arch`, `show` labels the architecture used for operands and manual links.
+
+For JSON fields, variant counts, alias identities, or SQL limits and views,
+read [query semantics](references/query-semantics.md).
+
+Architecture and group names are case-insensitive; unknown names exit 1 with
+valid choices. Use `rdna3_5` for RDNA3.5. `diff --group` filters the reported
+side's group and compares membership against the other architecture's full
+instruction set, so moving groups does not count as adding/removing an instruction.
+
+## Writing SQL
+
+Use `isa.py schema` to inspect the schema, then `isa.py sql "<SELECT ...>"`
+when the canned commands do not fit. The flattened views are `v_inst`,
+`v_presence`, `v_name`, `v_operand`, and `v_gfx`; read the query semantics
+reference before interpreting summary counts or writing joins.
+
+```bash
+isa.py sql "SELECT arch, COUNT(*) FROM v_presence WHERE \"group\"='VALU' GROUP BY arch"
+isa.py sql "SELECT name FROM v_presence WHERE arch='cdna5'
+            EXCEPT SELECT name FROM v_presence WHERE arch='cdna4'"
+```
+
+The connection is read-only. SQL has a 10-second deadline; narrow expensive
+queries. Truncated SQL results report a lower bound, not an exact total.
+
+## Known limits
+
+- **Structure vs semantics.** `isa.db` is built from AMD's machine-readable XML:
+  names, encodings, opcodes, operands, one-line descriptions. Pseudocode, hazards
+  and prose live in AMD's ISA reference manuals, which win when the two
+  disagree. Their PDF licence forbids redistribution, so the manual pages are not
+  shipped: amdgpu-isa-builder writes them per machine into persistent storage at
+  `~/.local/share/amdgpu-isa/manual` (respects XDG_DATA_HOME; override:
+  `$AMDGPU_ISA_MANUAL`). Use the same override in the builder and query
+  environments. For storage and rebuild behavior, see the builder README.
+  Manual query results include
+  absolute page paths. With them,
+  `isa.py manual` searches them and `show` prints an instruction's definition
+  page. Without them, `manual` exits 1 with build or query guidance: answer from
+  the database when the architecture has XML data, and say the semantics were
+  not checked. Manual-only architectures use `manual --grep` and `--toc`.
+- **gfx mapping is LLVM's, not AMD's.** The XML names no gfx targets; the map
+  comes from LLVM's `AMDGPUUsage.rst`. Beware that LLVM's headings are *encoding*
+  generations, not product architectures — it files `gfx1250` under "GCN GFX12
+  (RDNA 4)" although that is CDNA 5 hardware, and lumps all of Vega and CDNA 1-4
+  under "GCN GFX9". `isa.py gfx` reports both, and prints the basis for each
+  mapping. Vega and older targets resolve to no arch: AMD published no
+  machine-readable spec for them.
+- **Not cross-checked against LLVM.** Where this corpus and
+  `llvm/lib/Target/AMDGPU/*.td` disagree, LLVM is what the compiler actually
+  does; this is what AMD published.
+
+## Refreshing
+
+The database ships with this skill; a newer AMD release reaches it through a
+plugin update. To build the manual pages on this machine (roughly 1–2 minutes
+with cached downloads, needs pymupdf):
+
+```
+# Claude Code (the builder ships disabled; enable it just for the build)
+claude plugin enable amdgpu-isa-builder
+#   ...then ask: "build the AMD ISA manual pages"
+
+# or run it directly, no agent involved
+python3 <builder>/build.py all
+```
+
+`all` builds local manuals and data and checks them without regenerating this
+plugin. For maintainer releases, follow the builder's release workflow.
+
+`isa.py selftest` then runs all 14 checks, choosing an indexed manual
+architecture and preferring rdna4. It skips the 2 manual checks
+when no manual architectures are indexed.
+
+## Provenance
+
+Instruction data: AMD machine-readable ISA XML, MIT / "AMD Public Use". The gfx
+target mappings derive from LLVM's `AMDGPUUsage.rst` under Apache-2.0 with LLVM
+Exceptions. See NOTICE.md and LICENSE.LLVM.TXT for provenance and license terms.
+The query script and skill text are MIT-licensed; see LICENSE.

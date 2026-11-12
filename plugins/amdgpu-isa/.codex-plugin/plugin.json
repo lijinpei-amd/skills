@@ -1,0 +1,31 @@
+{
+  "name": "amdgpu-isa",
+  "version": "1.0.1",
+  "description": "AMD GPU ISA reference for CDNA 1-5 and RDNA 1-4: instruction encodings, operands, gfx mappings, aliases and cross-generation diffs from AMD's MIT-licensed machine-readable ISA XML.",
+  "author": {
+    "name": "Li Jinpei",
+    "email": "jinpli@amd.com"
+  },
+  "license": "MIT AND (Apache-2.0 WITH LLVM-exception)",
+  "keywords": [
+    "amdgpu",
+    "isa",
+    "cdna",
+    "rdna",
+    "gfx",
+    "llvm",
+    "instruction",
+    "encoding",
+    "mfma"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AMD GPU ISA",
+    "shortDescription": "Query AMD GPU instruction encodings, operands and architecture differences",
+    "developerName": "Li Jinpei",
+    "category": "Development",
+    "defaultPrompt": [
+      "Look up an AMD GPU instruction or compare its encodings across architectures."
+    ]
+  }
+}

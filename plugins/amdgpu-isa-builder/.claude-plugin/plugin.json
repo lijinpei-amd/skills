@@ -1,7 +1,7 @@
 {
   "name": "amdgpu-isa-builder",
-  "version": "1.0.5",
-  "description": "Build or refresh the local amdgpu-isa skill from public AMD sources: machine-readable ISA XML into a queryable SQLite corpus, LLVM's gfx target map, and the ISA reference manuals as per-page markdown for local reading.",
+  "version": "1.0.7",
+  "description": "Build AMD's ISA reference manuals as per-page markdown for the amdgpu-isa plugin to search locally, and regenerate that plugin's corpus from public AMD sources: machine-readable ISA XML into a queryable SQLite database plus LLVM's gfx target map.",
   "author": {
     "name": "Li Jinpei",
     "email": "jinpli@amd.com"
